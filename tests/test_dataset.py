@@ -150,3 +150,20 @@ def test_future_text_does_not_override_current_activity(dataset, tmp_path):
     )
     treat(source, tmp_path / "out")
     assert read_lines(tmp_path / "out/solicitacoes.jsonl")[0]["estado"] == "ativa"
+
+
+def test_historical_terminal_event_does_not_close_current_queue_entry(dataset, tmp_path):
+    source = dataset(
+        events=[
+            {
+                "tipo_evento": "contato_telefonico",
+                "resultado": "desistiu",
+                "descricao": "Paciente desistiu.",
+                "data_evento": "2025-01-01",
+            }
+        ]
+    )
+    treat(source, tmp_path / "out")
+    row = read_lines(tmp_path / "out/solicitacoes.jsonl")[0]
+    assert row["estado"] == "ativa"
+    assert "encerramento_historico_revisar" in row["avisos"]

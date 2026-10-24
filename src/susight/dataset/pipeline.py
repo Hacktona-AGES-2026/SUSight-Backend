@@ -160,15 +160,22 @@ def treat(input_dir, output_dir, reference=REFERENCE):
         terminal_events = [
             e
             for e in r["eventos"]
-            if e["temporal"] != "futuro"
+            if e["temporal"] == "durante_espera"
             and e["tipo_evento"] == "contato_telefonico"
             and e["resultado"] in {"desistiu", "informou_cirurgia_outro_servico"}
         ]
         terminal_text = [
             e
             for e in eligible
-            if e["conceito"] in {"desistencia", "cirurgia_outro_servico"} and e["polaridade"] == "afirmada"
+            if e.get("temporal") != "historico"
+            and e["conceito"] in {"desistencia", "cirurgia_outro_servico"}
+            and e["polaridade"] == "afirmada"
         ]
+        if any(
+            e.get("temporal") == "historico" and e["conceito"] in {"desistencia", "cirurgia_outro_servico"}
+            for e in entries
+        ):
+            r["avisos"].append("encerramento_historico_revisar")
         contradiction = any(
             (e["conceito"] == "retomada" and e["polaridade"] == "afirmada")
             or (e["conceito"] in {"desistencia", "cirurgia_outro_servico"} and e["polaridade"] != "afirmada")
