@@ -116,6 +116,10 @@ a versão sintética de seis critérios pode ser verificada antes.
 
 - Preservar funções marginais aditivas lineares por partes com nós 0, 0.5 e 1,
   incrementos não negativos e soma 1, escalas fixas e fontes explícitas.
+- Forma `marginal`: `livre` mantém os dois incrementos independentes; `linear`
+  acrescenta igualdades entre os dois incrementos de cada critério. As igualdades
+  vão para `A_eq` do HiGHS, junto da soma 1, e ficam fora do cálculo de folga da
+  função representativa (uma igualdade como duas desigualdades zeraria a folga mínima).
 - Preservar SciPy/HiGHS, tolerância explícita de 1e-7, viabilidade, identificação
   de conflitos e função representativa por máxima folga mínima. Distinguir falha
   numérica, inviabilidade e empate necessário de reversibilidade estrita.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import subprocess
 import sys
@@ -50,10 +51,11 @@ def demonstration_preferences(rows):
             break
     if len(pairs) < 10:
         raise ValueError("Menos de dez pares sinteticos dominantes sem espera; revise as referencias")
+    chain = sorted(SWINGS, key=SWINGS.get, reverse=True)
     return Preferences.model_validate(
         {
             "politica": POLICY_VERSION,
-            "versao": "swing-demo-sem-espera-1",
+            "versao": "swing-demo-sem-espera-2-linear",
             "demonstrativa": True,
             "swings_demonstrativos": SWINGS,
             "escalas": {
@@ -61,12 +63,17 @@ def demonstration_preferences(rows):
             },
             "pesos": {
                 c: {
-                    "minimo": 0.75 * SWINGS[c] / total,
-                    "maximo": min(1, 1.25 * SWINGS[c] / total),
+                    "minimo": 0.9 * SWINGS[c] / total,
+                    "maximo": min(1, 1.1 * SWINGS[c] / total),
                     "fonte": source,
                 }
                 for c in CRITERIA
             },
+            "ordem_pesos": [
+                {"maior": a, "menor": b, "fonte": "Ordem dos swings demonstrativos; " + source}
+                for a, b in itertools.pairwise(chain)
+            ],
+            "marginal": "linear",
             "comparacoes": pairs,
             "janela": 1,
         }
