@@ -17,6 +17,7 @@ from . import extraction
 from .access import Access, Principal
 from .artifacts import purge_artifacts
 from .policy import POLICY_VERSION
+from .reassessment import ScoringModel, reassess
 from .tribunal.guards import guard, validate_queue
 from .tribunal.models import (
     Cancellation,
@@ -135,7 +136,14 @@ class ReferenceVersion(Strict):
 
 
 def create_app(
-    database=None, provider=None, token=None, start_worker=True, access=None, clock=None, extractor=None
+    database=None,
+    provider=None,
+    token=None,
+    start_worker=True,
+    access=None,
+    clock=None,
+    extractor=None,
+    scoring=None,
 ):
     # Refuse an unauthenticated clinical API. Config is evaluated at lifespan time.
     configured_token = token if token is not None else os.environ.get("SUSIGHT_API_TOKEN", "")
@@ -176,6 +184,7 @@ def create_app(
     app = FastAPI(title="SUSight Backend", version="0.1.0", lifespan=lifespan)
     app.state.store, app.state.tribunal = store, tribunal
     app.state.extractor = extractor or extraction.GeminiExtractor()
+    app.state.scoring = scoring
 
     def authenticate(authorization: str | None = Header(default=None)):
         principal = identities.resolve(authorization)
@@ -459,6 +468,84 @@ def create_app(
         permit_case(doc["sid"], principal)
         return doc
 
+    CRITERION_FIELDS = ("limitacao_funcional", "asa", "dor", "comorbidades", "deterioracao")
+
+    def evidence_value(name, value):
+        if name == "dor":
+            return value["intensidade"]
+        if name == "comorbidades":
+            return [item["valor"] for item in value]
+        return value
+
+    def reevaluate(did, fields):
+        """A read document re-scores its patient; a better position becomes a proposal for the doctor.
+
+        The doctor approves the final result, not each evidence: the OCR evidence is registered as approved by
+        the system and shown as such in the proposal. Nothing changes the queue before that approval.
+        """
+        raw = app.state.scoring or store.scoring_model()
+        model = raw if isinstance(raw, ScoringModel) else ScoringModel.from_file(raw) if raw else None
+        document = store.document(did)
+        sid = document["sid"]
+        version, rows = store.queue()
+        patient = next((r for r in rows if r["solicitacao_id"] == sid), None)
+        if model is None or patient is None:
+            return
+        try:
+            result = reassess(rows, sid, fields, model)
+        except ValueError:
+            return
+        if result["criterios"] == patient["criterios"]:
+            return store.note(
+                sid, "documento_lido", "sistema-ocr", "Documento lido: os critérios não mudaram."
+            )
+        if result["posicao"] >= patient["posicao"]:
+            return store.note(
+                sid,
+                "documento_lido",
+                "sistema-ocr",
+                "Documento lido: critérios atualizados, sem mudança de posição.",
+            )
+        evidences, today = [], store.instant()[:10]
+        for name in CRITERION_FIELDS:
+            item = fields.get(name) or {}
+            if item.get("valor_extraido") is None or item.get("confianca") not in {"alta", "media"}:
+                continue
+            quote = (item.get("evidencias") or [{}])[0]
+            if not quote.get("trecho"):
+                continue
+            payload = {
+                "evidencia": {
+                    "evidencia_id": f"OCR-{did[:12]}-{name}",
+                    "tipo": "criterio",
+                    "resultado": "observado",
+                    "data": today,
+                },
+                "documento_id": did,
+                "pagina": quote["pagina"],
+                "trecho": quote["trecho"],
+                "campo": name,
+                "valor": evidence_value(name, item["valor_extraido"]),
+                "confianca": item["confianca"],
+            }
+            eid = store.register_evidence(EvidenceRegistration(**payload).model_dump(), "sistema-ocr")
+            store.review_evidence(
+                eid,
+                "aprovar",
+                "sistema-ocr",
+                "Lida do documento pelo sistema; o médico confere o resultado final.",
+            )
+            evidences.append(store.approved_payload(eid, sid))
+        body = ProposalInput(
+            solicitacao_id=sid,
+            posicao_proposta=result["posicao"],
+            versao_fila=version,
+            ordenacao_incerta=True,
+            evidencias=evidences,
+            reavaliacao={k: result[k] for k in ("criterios", "swalis", "sem_urgencia", "pontuacao")},
+        ).model_dump()
+        store.create(body, "sistema-ocr")
+
     @app.post("/documentos/{did}/extracao")
     async def run_extraction(did: str, principal=principal_dependency):
         permitted_document(did, principal)
@@ -486,6 +573,8 @@ def create_app(
                     )
                     result = ("extraido", warnings, fields)
         store.save_extraction(did, *result)
+        if result[0] == "extraido":
+            reevaluate(did, result[2])
         return {"documento_id": did, "situacao": result[0], "avisos": result[1]}
 
     @app.get("/documentos/{did}/extracao")
@@ -655,6 +744,8 @@ def create_app(
                 raise HTTPException(409, "Proposta viola travas")
             changed = [r.copy() for r in queue if r["solicitacao_id"] != p["body"]["solicitacao_id"]]
             patient = next(r.copy() for r in queue if r["solicitacao_id"] == p["body"]["solicitacao_id"])
+            # Criteria re-read from the document take effect only now, with the doctor's approval.
+            patient |= p["body"].get("reavaliacao") or {}
             changed.insert(checked["posicao"] - 1, patient)
             for i, row in enumerate(changed, 1):
                 row["posicao"] = i

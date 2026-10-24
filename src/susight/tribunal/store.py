@@ -126,6 +126,8 @@ class Store:
               PRIMARY KEY(notification_id, leitor));
             CREATE TABLE IF NOT EXISTS notification_prefs(paciente_id TEXT NOT NULL, tipo TEXT NOT NULL,
               ativo INTEGER NOT NULL, PRIMARY KEY(paciente_id, tipo));
+            -- Value function that ordered the queue, to re-score one patient from a read document.
+            CREATE TABLE IF NOT EXISTS scoring_model(id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS contacts(id INTEGER PRIMARY KEY, paciente_id TEXT NOT NULL, nome TEXT NOT NULL,
               parentesco TEXT NOT NULL, telefone TEXT NOT NULL, created_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS devices(id INTEGER PRIMARY KEY, principal_id TEXT NOT NULL, paciente_id TEXT,
@@ -285,6 +287,20 @@ class Store:
             db.execute("DELETE FROM sessions WHERE token_sha256=?", (digest,))
             db.execute("DELETE FROM devices WHERE principal_id=?", (row["account_id"],))
         return row["account_id"]
+
+    def save_scoring_model(self, body):
+        with self.db() as db:
+            db.execute("INSERT OR REPLACE INTO scoring_model VALUES (1,?)", (json.dumps(body),))
+
+    def scoring_model(self):
+        with self.db() as db:
+            row = db.execute("SELECT body FROM scoring_model WHERE id=1").fetchone()
+        return json.loads(row["body"]) if row else None
+
+    def note(self, sid, kind, actor, text):
+        """Add one line to a case's trail (spec 004)."""
+        with self.db() as db:
+            self._event(db, sid, self._patient_of(db, sid), kind, actor, text)
 
     def _event(self, db, sid, patient, kind, actor, text, reason=None):
         db.execute(
@@ -837,7 +853,7 @@ class Store:
         return self._summary(proposal, row) | {
             "swalis": row.get("swalis"),
             "prioridade_regulacao": row.get("prioridade_regulacao"),
-            "criterios": row.get("criterios"),
+            "criterios": (body.get("reavaliacao") or {}).get("criterios") or row.get("criterios"),
             "evidencias": evidence,
             "parecer": json.loads(proposal["opinion"]) if proposal["opinion"] else None,
             "historico": [

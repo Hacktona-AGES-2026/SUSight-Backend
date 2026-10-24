@@ -295,6 +295,7 @@ def test_blank_medical_name_rejected():
 
 def proposal_reference():
     body = proposal()
+    body.pop("reavaliacao")  # set only by the system when it reads a document, never by a client
     body["evidencias_ids"] = [e["evidencia_id"] for e in body.pop("evidencias")]
     return body
 
@@ -341,3 +342,33 @@ async def test_rejection_stops_returning_after_three_rounds(setup):
     await Tribunal(setup, FakeProvider()).process(pid)
     setup.decide(pid, "medico-test", "rejeitar", "Ainda sem comprovacao.")
     assert setup.list_proposals(["aguardando_tribunal"], None) == []
+
+
+def test_queue_keeps_the_patient_name_procedure_and_city_for_the_doctor(tmp_path):
+    rows = queue(3)
+    rows[0] |= {
+        "nome": "Pedro Freitas Medeiros",
+        "procedimento": "Herniorrafia inguinal",
+        "municipio": "Porto Alegre",
+    }
+    store = Store(tmp_path / "names.sqlite")
+    store.import_queue(validate_queue(rows), 0)
+    first = store.queue()[1][0]
+    assert (first["nome"], first["procedimento"], first["municipio"]) == (
+        "Pedro Freitas Medeiros",
+        "Herniorrafia inguinal",
+        "Porto Alegre",
+    )
+    assert store.queue()[1][1]["nome"] is None
+
+
+def test_vote_parsing_ignores_keys_the_model_invents_and_fixes_the_agent_name():
+    from susight.tribunal.provider import parse_vote
+
+    raw = (
+        '{"agente": "Advogado", "veredito": "contra", "posicao_defendida": 794, "parecer": "x",'
+        ' "justificativa": "Sem exame que comprove a mudanca.", "evidencias_citadas": ["E1"]}'
+    )
+    got = parse_vote("contestacao", raw)
+    assert (got.agente, got.veredito, got.evidencias_citadas) == ("contestacao", "contra", ["E1"])
+    assert got.sem_comprovacao is False and got.posicao_sugerida is None

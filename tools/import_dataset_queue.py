@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--events", help="eventos_clinicos.csv do dataset, para o historico do paciente da demo"
     )
+    parser.add_argument("--model", help="funcao_representativa.json da pontuacao, para reavaliar um paciente")
     parser.add_argument("--password", default="demo1234")
     parser.add_argument("--patient-id", default="PAC-00152")
     parser.add_argument("--patient-cpf", default="52998224725")
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     if path.exists():
         parser.exit(1, f"Erro: {path} ja existe; apague-o para importar de novo\n")
     path.parent.mkdir(parents=True, exist_ok=True)
-    porte, entry_date = {}, {}
+    porte, entry_date, identity = {}, {}, {}
     if args.treated and args.procedures:
         with open(args.procedures, encoding="utf-8") as stream:
             by_proc = {r["procedimento_id"]: r["porte"] for r in csv.DictReader(stream)}
@@ -41,13 +42,22 @@ if __name__ == "__main__":
             item = json.loads(line)
             porte[item["solicitacao_id"]] = by_proc.get(item["normalizado"]["procedimento_id"])
             entry_date[item["solicitacao_id"]] = item["normalizado"].get("data_entrada_fila")
+            n = item["normalizado"]
+            identity[item["solicitacao_id"]] = {
+                "nome": n.get("nome_paciente"),
+                "procedimento": n.get("procedimento"),
+                "municipio": n.get("municipio"),
+            }
     raw = json.loads(Path(args.queue).read_text())
     for r in raw:
+        r |= {k: v for k, v in identity.get(r["solicitacao_id"], {}).items() if v}
         if porte.get(r["solicitacao_id"]):
             r["porte"] = porte[r["solicitacao_id"]]
     rows = validate_queue([{k: v for k, v in r.items() if k in QueuePatient.model_fields} for r in raw])
     store = Store(path)
     store.import_queue(rows, 0, "import-dataset")
+    if args.model:
+        store.save_scoring_model(json.loads(Path(args.model).read_text()))
     store.provision_account("medico-demo", "medico", [r["paciente_id"] for r in rows], args.password)
     store.provision_account("admin-demo", "admin", [], args.password)
     # Conta do app: o paciente da demonstracao, que ja esta na fila importada.
@@ -55,7 +65,7 @@ if __name__ == "__main__":
     store.provision_account(args.patient_cpf, "paciente", [mine["paciente_id"]], args.patient_code)
     # Only the demo patient gets a lived-in profile; every other account starts empty.
     entered = entry_date.get(mine["solicitacao_id"])
-    history = [(entered, "entrada_na_fila", "Entrada na fila de cirurgia eletiva.")] if entered else []
+    history = [(entered, "entrada_na_fila", "Entrada na fila de cirurgia.")] if entered else []
     if args.events:
         with open(args.events, encoding="utf-8") as stream:
             history += [
