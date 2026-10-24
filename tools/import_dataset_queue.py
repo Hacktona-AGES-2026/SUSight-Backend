@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--events", help="eventos_clinicos.csv do dataset, para o historico do paciente da demo"
     )
+    parser.add_argument("--model", help="funcao_representativa.json da pontuacao, para reavaliar um paciente")
     parser.add_argument("--password", default="demo1234")
     parser.add_argument("--patient-id", default="PAC-00152")
     parser.add_argument("--patient-cpf", default="52998224725")
@@ -55,6 +56,8 @@ if __name__ == "__main__":
     rows = validate_queue([{k: v for k, v in r.items() if k in QueuePatient.model_fields} for r in raw])
     store = Store(path)
     store.import_queue(rows, 0, "import-dataset")
+    if args.model:
+        store.save_scoring_model(json.loads(Path(args.model).read_text()))
     store.provision_account("medico-demo", "medico", [r["paciente_id"] for r in rows], args.password)
     store.provision_account("admin-demo", "admin", [], args.password)
     # Conta do app: o paciente da demonstracao, que ja esta na fila importada.
