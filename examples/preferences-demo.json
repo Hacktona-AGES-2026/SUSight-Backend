@@ -1,6 +1,6 @@
 {
   "politica": "priorizacao-sem-espera-v1",
-  "versao": "swing-demo-sem-espera-1",
+  "versao": "swing-demo-sem-espera-2-linear",
   "demonstrativa": true,
   "swings_demonstrativos": {
     "deterioracao": 100.0,
@@ -44,37 +44,64 @@
   },
   "pesos": {
     "limitacao": {
-      "minimo": 0.16216216216216217,
-      "maximo": 0.2702702702702703,
+      "minimo": 0.1945945945945946,
+      "maximo": 0.23783783783783785,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "asa": {
-      "minimo": 0.08108108108108109,
-      "maximo": 0.13513513513513514,
+      "minimo": 0.0972972972972973,
+      "maximo": 0.11891891891891893,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "dor": {
-      "minimo": 0.14189189189189189,
-      "maximo": 0.23648648648648649,
+      "minimo": 0.17027027027027028,
+      "maximo": 0.20810810810810812,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "comorbidades": {
-      "minimo": 0.12162162162162163,
-      "maximo": 0.20270270270270271,
+      "minimo": 0.14594594594594595,
+      "maximo": 0.1783783783783784,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "deterioracao": {
-      "minimo": 0.20270270270270271,
-      "maximo": 0.33783783783783783,
+      "minimo": 0.24324324324324326,
+      "maximo": 0.2972972972972973,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "distancia": {
-      "minimo": 0.04054054054054054,
-      "maximo": 0.06756756756756757,
+      "minimo": 0.04864864864864865,
+      "maximo": 0.05945945945945946,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     }
   },
-  "ordem_pesos": [],
+  "ordem_pesos": [
+    {
+      "maior": "deterioracao",
+      "menor": "limitacao",
+      "fonte": "Ordem dos swings demonstrativos; Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    {
+      "maior": "limitacao",
+      "menor": "dor",
+      "fonte": "Ordem dos swings demonstrativos; Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    {
+      "maior": "dor",
+      "menor": "comorbidades",
+      "fonte": "Ordem dos swings demonstrativos; Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    {
+      "maior": "comorbidades",
+      "menor": "asa",
+      "fonte": "Ordem dos swings demonstrativos; Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    {
+      "maior": "asa",
+      "menor": "distancia",
+      "fonte": "Ordem dos swings demonstrativos; Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    }
+  ],
+  "marginal": "linear",
   "comparacoes": [
     {
       "antes": "SOL-2022-00002",
