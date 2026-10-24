@@ -65,6 +65,16 @@ LLM, OCR ou upload. Chamadas reais a Gemini permanecem fora do escopo.
 - [x] 7.5 Dataset completo: verificador oficial OK; oncológicos de mediana 518 para 146, todos nas 244 primeiras posições; CSV idêntico em duas execuções.
 - [ ] 7.6 Revisar com quem conhece a regulação os limiares de dor (7 e 4) e as regras de A1 e A2.
 
+## 8. Forma linear, ordem dos pesos e faixas de 10%
+
+- [x] 8.1 Medir em experimento a incerteza por fonte (faixas, ordem, forma da curva) no dataset completo.
+- [x] 8.2 Atualizar spec e plano com a forma `marginal` e a parametrização demonstrativa.
+- [x] 8.3 Testes antes do código: metades iguais na forma linear, incerteza só de formato resolvida, padrão `livre`, valor desconhecido rejeitado, gerador demonstrativo.
+- [x] 8.4 Implementar igualdades em `A_eq` no solver e na função representativa.
+- [x] 8.5 Gerador e exemplo: forma linear, cadeia de ordem dos swings, faixas de ±10%, versão `swing-demo-sem-espera-2-linear`.
+- [x] 8.6 Dataset completo: verificador oficial OK; incertos 828 → 612 (vizinhos), 736 → 280 (10 posições), 464 → 0 (50 posições); CSV idêntico em duas execuções.
+- [ ] 8.7 Validar com o time e com quem conhece a regulação a suposição de forma linear e a ordem dos pesos.
+
 ## Evidências desta execução
 
 - Política sem espera aceita tecnicamente: 70 testes, Ruff e verificador original.

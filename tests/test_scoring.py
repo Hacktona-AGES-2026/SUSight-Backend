@@ -1,8 +1,12 @@
+import itertools
 import json
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 from conftest import read_lines
+from pydantic import ValidationError
 
 from susight.dataset import treat
 from susight.policy import POLICY_VERSION
@@ -300,6 +304,83 @@ def test_reference_pair_against_swalis_precedence_is_rejected():
     prefs.comparacoes[0].antes, prefs.comparacoes[0].depois = "BHIGH", "A2LOW"
     with pytest.raises(Incompatible, match="hierarquia"):
         ROR(rows, prefs)
+
+
+DOR_MAIOR = [{"maior": "dor", "menor": "limitacao", "fonte": "Fixture sintetica"}]
+
+
+def shape_rows():
+    rows = synthetic()
+    zero = dict.fromkeys(CRITERIA, 0)
+    rows += [
+        {
+            "solicitacao_id": "DOR10",
+            "criterios": zero | {"dor": 10},
+            "oncologico": False,
+            "sem_urgencia": False,
+            "dias_em_fila": 1,
+        },
+        {
+            "solicitacao_id": "MEIO",
+            "criterios": zero | {"dor": 5, "limitacao": 5},
+            "oncologico": False,
+            "sem_urgencia": False,
+            "dias_em_fila": 1,
+        },
+    ]
+    return rows
+
+
+def test_linear_marginal_equalizes_both_halves_in_every_model():
+    rows = synthetic()
+    model = ROR(rows, preferences(rows, marginal="linear"))
+    assert np.allclose(model.representative[0::2], model.representative[1::2])
+    for i in range(len(CRITERIA)):
+        v = np.zeros(model.nvars)
+        v[2 * i], v[2 * i + 1] = 1, -1
+        assert model.solve(v).fun == pytest.approx(0, abs=1e-7)
+        assert model.solve(-v).fun == pytest.approx(0, abs=1e-7)
+
+
+def test_linear_marginal_resolves_shape_only_uncertainty():
+    rows = shape_rows()
+    free = ROR(rows, preferences(rows, ordem_pesos=DOR_MAIOR))
+    assert free.relation("DOR10", "MEIO")["incerto"]
+    linear = ROR(rows, preferences(rows, ordem_pesos=DOR_MAIOR, marginal="linear"))
+    relation = linear.relation("DOR10", "MEIO")
+    assert relation["a_necessario"] and not relation["incerto"]
+
+
+def test_marginal_defaults_to_free_and_rejects_unknown_shape():
+    rows = synthetic()
+    assert preferences(rows).marginal == "livre"
+    with pytest.raises(ValidationError):
+        preferences(rows, marginal="concava")
+
+
+def test_demonstration_preferences_use_linear_swing_chain_and_ten_percent_bands():
+    sys.path.insert(0, str(Path(__file__).parents[1] / "tools"))
+    from acceptance import SWINGS, demonstration_preferences
+
+    rows = [
+        {
+            "solicitacao_id": f"{i:02d}",
+            "criterios": dict.fromkeys(CRITERIA, i + 1),
+            "oncologico": False,
+            "sem_urgencia": False,
+        }
+        for i in range(12)
+    ]
+    prefs = demonstration_preferences(rows)
+    assert prefs.marginal == "linear"
+    chain = sorted(SWINGS, key=SWINGS.get, reverse=True)
+    assert [(o.maior, o.menor) for o in prefs.ordem_pesos] == list(itertools.pairwise(chain))
+    total = sum(SWINGS.values())
+    for c in CRITERIA:
+        weight = SWINGS[c] / total
+        assert prefs.pesos[c].minimo == pytest.approx(0.9 * weight)
+        assert prefs.pesos[c].maximo == pytest.approx(1.1 * weight)
+    ROR(rows, prefs)
 
 
 def test_expired_treated_data_is_rejected_before_any_scoring(dataset, tmp_path):

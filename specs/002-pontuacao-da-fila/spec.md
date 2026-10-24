@@ -38,6 +38,12 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 6. Cada restrição e cada comparação de referência fica registrada com a fonte que a sustenta.
 7. Se as restrições forem contraditórias entre si (nenhuma ponderação satisfaz todas), o sistema informa quais restrições estão em conflito e não gera a fila até que elas sejam corrigidas.
 
+### Forma da função de valor
+
+- A configuração escolhe a forma da contribuição de cada critério: `livre` (padrão; a contribuição é monótona, mas pode crescer mais no início ou no fim da escala) ou `linear` (cada ponto da escala vale o mesmo, por exemplo dor de 3 para 4 conta igual a de 8 para 9).
+- Na forma `linear`, só os pesos variam entre as ponderações compatíveis. A função representativa continua sendo escolhida entre elas, sem fixar um único conjunto de pesos.
+- A parametrização demonstrativa usa a forma `linear`, a ordem dos pesos igual à ordem dos swings (deterioração > limitação > dor > comorbidades > ASA > distância) e faixas de ±10% em torno do peso normalizado. Motivo: no dataset, a forma livre era a maior fonte de incerteza; com esta configuração, os pares incertos caem de 828 para 612 entre vizinhos, de 736 para 280 a 10 posições e de 464 para 0 a 50 posições. A incerteza restante fica entre vizinhos próximos, onde o tribunal atua. Continua sendo premissa demonstrativa, sem validação clínica.
+
 ### Ordenação robusta
 
 8. A ordenação é hierárquica em dois níveis. Primeiro, o grupo protegido (CID C* ou não classificado como sem urgência) antecede o grupo sem urgência clínica ou assim identificado pelo verificador. Segundo, dentro do grupo protegido, a **classe SWALIS** (A1, A2, B, C, D, nessa ordem) é uma camada de precedência: toda solicitação de uma classe antecede as das classes seguintes. A classe é derivada só de dados clínicos (CID, biópsia positiva, dor, limitação e piora durante a espera); dias em fila, data de entrada e razão de prazo não participam. Essas precedências são rígidas e não dependem dos pesos. Dentro de cada classe, o sistema considera todas as funções de valor aditivas compatíveis com as restrições. Comparações entre grupos são verificadas contra a hierarquia; não são usadas para ajustar os pesos. Uma comparação que contrarie a hierarquia é rejeitada explicitamente.
@@ -90,6 +96,11 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 - [ ] Alterar a classe SWALIS por dados clínicos muda a posição; alterar só dias de espera, data de entrada ou razão de prazo não muda a classe nem a fila.
 - [ ] Uma comparação de referência que contrarie a precedência entre classes SWALIS é rejeitada, como as que contrariam a hierarquia entre grupos.
 - [ ] O relatório de aceitação informa a distribuição dos oncológicos por faixa de posição e por classe SWALIS.
+- [ ] Com a forma `linear`, as duas metades da escala de cada critério recebem a mesma contribuição em todas as ponderações compatíveis, inclusive na representativa.
+- [ ] Um par que é incerto só por causa da forma da curva passa a ter ordem necessária com a forma `linear` e a ordem de pesos correspondente.
+- [ ] Sem o campo de forma, a configuração continua `livre` e produz a mesma fila de antes.
+- [ ] Um valor de forma desconhecido é rejeitado.
+- [ ] A parametrização demonstrativa usa forma `linear`, a cadeia de ordem dos swings e faixas de ±10%, com a fonte de cada restrição registrada.
 - [ ] Toda linha tem justificativa legível em português do Brasil, sem diagnóstico.
 - [ ] Rodar duas vezes com os mesmos dados e as mesmas restrições produz a mesma fila.
 - [ ] A ausência na extração documental continua `null` e rastreável; a imputação do dataset não é apresentada como valor documentado.
