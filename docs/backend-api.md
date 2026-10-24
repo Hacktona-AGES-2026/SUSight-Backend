@@ -50,6 +50,12 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `GET/PUT /preferencias/notificacoes` | Avisos desligáveis do paciente; o de exame pedido é obrigatório (spec 005). |
 | `GET/POST /contatos`, `DELETE /contatos/{id}` | Contatos de acompanhamento do paciente; telefone sempre mascarado na leitura (spec 005). |
 | `GET/POST /dispositivos`, `DELETE /dispositivos/{id}` | Dispositivos da própria identidade para entrega futura de push; o token não é devolvido (spec 005). |
+| `POST /sessoes` | Login com `identificador` e `senha`; devolve token de sessão. 401 genérico; 429 com conta bloqueada (spec 007). |
+| `DELETE /sessoes` | Sai da conta: encerra a sessão e remove os dispositivos da identidade (spec 007). |
+
+Sessões expiram após 30 minutos sem uso; cinco senhas erradas seguidas bloqueiam a
+conta por 15 minutos. A senha fica só como hash scrypt com sal, e o token de sessão só
+como SHA-256. Tokens estáticos do `access.json` continuam aceitos.
 
 `pedir_informacoes` exige `exames` (até 10, cada um com `exame` e `explicacao` opcional);
 as demais decisões recusam o campo. `POST /documentos` aceita `pedido_id` para ligar o

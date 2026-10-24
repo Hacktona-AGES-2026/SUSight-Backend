@@ -8,4 +8,4 @@ Plano: ./plan.md
 - [x] 4. Preferências com o aviso de exame pedido obrigatório.
 - [x] 5. Contatos com telefone mascarado e dispositivos.
 - [x] 6. Rodar a suíte completa, Ruff e formatação: 106 testes passando.
-- [ ] 7. Remover os dispositivos no logout: entra com a spec 007.
+- [x] 7. Remover os dispositivos no logout: feito com a spec 007 (`DELETE /sessoes`).
