@@ -1,0 +1,23 @@
+DOCUMENTO SINTETICO PARA DEMONSTRACAO - PACIENTE FICTICIO
+
+Tipo de documento: Laudo de reavaliacao cirurgica
+Data do documento: 2026-10-22
+Paciente: Paciente Ficticio Demonstracao
+Solicitacao: SOL-2023-00002   Paciente: PAC-00152
+
+Motivo: reavaliacao de hernia inguinal direita (CID K40.9) em fila de cirurgia eletiva.
+
+Historia: o paciente relata piora nas ultimas tres semanas. Houve dois episodios de
+encarceramento da hernia, com reducao manual no pronto atendimento. Procurou o PS duas vezes
+no ultimo mes por dor.
+
+Dor: intensidade 8 em escala de 0 a 10, com dor aos menores esforcos.
+
+Limitacao funcional: grave. Nao consegue caminhar mais de um quarteirao nem carregar peso;
+afastado do trabalho.
+
+Comorbidades: hipertensao arterial e diabetes mellitus tipo 2 em uso de metformina.
+
+Classificacao ASA: 3.
+
+Conclusao: risco de estrangulamento. Recomenda-se priorizar a correcao cirurgica.
