@@ -42,6 +42,12 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /propostas/{id}/decisao` | Aprovação, rejeição com motivo ou pedido de informações. |
 | `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
 | `GET /solicitacoes/{id}/historico` | Trilha de eventos da solicitação, do mais recente ao mais antigo (spec 004). |
+| `GET /solicitacoes/{id}/exames-pedidos` | Exames pedidos pelo médico, com situação e contagem de pendentes (spec 006). |
+
+`pedir_informacoes` exige `exames` (até 10, cada um com `exame` e `explicacao` opcional);
+as demais decisões recusam o campo. `POST /documentos` aceita `pedido_id` para ligar o
+envio a um pedido `pendente` da mesma solicitação. A situação do pedido avança sozinha:
+`recebido` no envio, `em_analise` na primeira evidência e `atendido` na revisão dela.
 
 OpenAPI em `/docs` contém campos e limites. Importar a fila selecionando de `fila.json`
 os campos de `QueuePatient`, incluindo `paciente_id` e `politica: "priorizacao-sem-espera-v1"`; não enviar critérios ou outros
