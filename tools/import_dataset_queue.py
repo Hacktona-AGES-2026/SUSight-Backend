@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -18,6 +19,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--queue", required=True)
     parser.add_argument("--database", required=True)
+    parser.add_argument("--treated", help="pasta do tratamento (solicitacoes.jsonl), para ler o procedimento")
+    parser.add_argument("--procedures", help="procedimentos.csv do dataset, para o porte")
     parser.add_argument("--password", default="demo1234")
     parser.add_argument("--patient-id", default="PAC-00152")
     parser.add_argument("--patient-cpf", default="52998224725")
@@ -27,12 +30,18 @@ if __name__ == "__main__":
     if path.exists():
         parser.exit(1, f"Erro: {path} ja existe; apague-o para importar de novo\n")
     path.parent.mkdir(parents=True, exist_ok=True)
-    rows = validate_queue(
-        [
-            {k: v for k, v in r.items() if k in QueuePatient.model_fields}
-            for r in json.loads(Path(args.queue).read_text())
-        ]
-    )
+    porte = {}
+    if args.treated and args.procedures:
+        with open(args.procedures, encoding="utf-8") as stream:
+            by_proc = {r["procedimento_id"]: r["porte"] for r in csv.DictReader(stream)}
+        for line in (Path(args.treated) / "solicitacoes.jsonl").read_text().splitlines():
+            item = json.loads(line)
+            porte[item["solicitacao_id"]] = by_proc.get(item["normalizado"]["procedimento_id"])
+    raw = json.loads(Path(args.queue).read_text())
+    for r in raw:
+        if porte.get(r["solicitacao_id"]):
+            r["porte"] = porte[r["solicitacao_id"]]
+    rows = validate_queue([{k: v for k, v in r.items() if k in QueuePatient.model_fields} for r in raw])
     store = Store(path)
     store.import_queue(rows, 0, "import-dataset")
     store.provision_account("medico-demo", "medico", [r["paciente_id"] for r in rows], args.password)
