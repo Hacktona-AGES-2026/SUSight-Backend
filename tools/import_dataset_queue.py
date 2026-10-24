@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--queue", required=True)
     parser.add_argument("--database", required=True)
     parser.add_argument("--password", default="demo1234")
+    parser.add_argument("--patient-id", default="PAC-00152")
     parser.add_argument("--patient-cpf", default="52998224725")
     parser.add_argument("--patient-code", default="123456")
     args = parser.parse_args()
@@ -36,8 +37,8 @@ if __name__ == "__main__":
     store.import_queue(rows, 0, "import-dataset")
     store.provision_account("medico-demo", "medico", [r["paciente_id"] for r in rows], args.password)
     store.provision_account("admin-demo", "admin", [], args.password)
-    # Conta do app: o paciente na posicao 8, para a tela inicial ter um numero a mostrar.
-    mine = rows[7]
+    # Conta do app: o paciente da demonstracao, que ja esta na fila importada.
+    mine = next(r for r in rows if r["paciente_id"] == args.patient_id)
     store.provision_account(args.patient_cpf, "paciente", [mine["paciente_id"]], args.patient_code)
     print(f"{len(rows)} solicitacoes importadas em {path}")
     print(f"Contas: medico-demo e admin-demo, senha {args.password}")
