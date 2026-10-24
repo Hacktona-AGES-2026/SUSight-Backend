@@ -60,3 +60,7 @@ Nenhuma. A escolha do LLM e do provedor, o tempo limite por agente e a política
 ## Alinhamento da implementação
 
 Autorização de implementação pelo usuário em 2026-10-24. As travas usam a fila vigente do servidor; nenhuma posição é aplicada sem decisão médica. O provedor é configurável por ambiente e sua disponibilidade não implica validação clínica do parecer.
+
+## Estado da implementação
+
+Implementação e testes incluídos no PR consolidado. Evidências e critérios de aceitação ainda pendentes estão em `../../docs/backend-validation.md`; não declarar validação clínica nem aceitação da base completa antes de resolver essas pendências.

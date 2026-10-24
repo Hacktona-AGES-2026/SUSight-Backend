@@ -107,3 +107,7 @@ Esta feature prepara os dados para a pontuação da fila (spec 002, issue #6). C
 ## Questões em aberto
 
 Nenhuma decisão de comportamento pendente. O plano deve detalhar os formatos de saída, as regras versionadas de compatibilidade e extração textual e a representação das medianas ordinais, de acordo com os comportamentos acima.
+
+## Estado da implementação
+
+Implementação e testes incluídos no PR consolidado. Evidências e critérios de aceitação ainda pendentes estão em `../../docs/backend-validation.md`; não declarar validação clínica nem aceitação da base completa antes de resolver essas pendências.

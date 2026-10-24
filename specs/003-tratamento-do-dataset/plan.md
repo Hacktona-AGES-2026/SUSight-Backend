@@ -93,3 +93,7 @@ O verificador oficial exige a fila já ordenada e será executado depois da pont
 ## Dependências e aprovação
 
 Spec aprovada pelo usuário em 2026-10-24. Plano e convenção de mediana ordinal autorizados no pedido de implementação de todas as specs. Não depende de LLM, FastAPI ou definição de pesos.
+
+## Organização executada
+
+Passos implementados em `dataset/core.py` (leitura, validação, normalização, texto e consolidação), `dataset/pipeline.py` (eventos, atividade, imputação e publicação) e `dataset/__main__.py` (CLI). Evidências da execução e limites em `../../docs/backend-validation.md`.

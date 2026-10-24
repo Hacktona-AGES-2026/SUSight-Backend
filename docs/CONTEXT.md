@@ -27,7 +27,7 @@ A posição sobe conforme o quanto o paciente está sendo prejudicado por espera
 - tempo de espera;
 - deterioração durante a espera.
 
-Também entram a prioridade validada pela regulação (Baixa, Moderada, Alta) e regras de equidade: limite de elevação por reavaliação e não passar à frente de quem tem prioridade maior e mais espera. Os pesos exatos ainda serão fechados pela equipe.
+A prioridade manual da regulação é informativa, sem peso na pontuação (spec 002). As preferências de swing e ROR dependem de validação; regras de equidade incluem limite de elevação de 10% por reavaliação e a regra de ouro oncológica. Há conflito de modelagem no dataset completo, descrito em `docs/backend-validation.md`.
 
 ## Fluxo do sistema
 
@@ -68,7 +68,7 @@ Hoje a interface mostra três agentes dando veredito sobre cada proposta:
 | Contestação | Argumenta contra e aponta o que falta confirmar |
 | Equidade e regras | Confere limites e justiça frente ao resto da fila |
 
-Em aberto: a descrição original fala em um advogado por paciente da lista. O modelo final ainda precisa ser decidido.
+O modelo definido usa três agentes fixos. O tribunal recebe propostas de ordenação incerta ou evidência conflitante; não analisa automaticamente toda a fila inicial.
 
 ## Produto
 
@@ -103,7 +103,7 @@ Tasks: https://github.com/orgs/Hacktona-AGES-2026/projects/6. O título de cada 
 
 ## Decisões em aberto
 
-1. Modelo do tribunal: um advogado por paciente ou três agentes.
+1. Resolver o conflito entre regras rígidas e ordem necessária da ROR no dataset completo.
 2. Pesos dos critérios e regras de equidade.
 3. Tratamento do dataset: limpeza, deduplicação e campos de prioridade e tempo de espera.
-4. Tecnologias de cada repositório.
+4. Integração do Backend Python/FastAPI/SQLite com o setup da equipe e validação do provedor de IA.

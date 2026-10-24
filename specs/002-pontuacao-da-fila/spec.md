@@ -85,3 +85,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 ## Questões em aberto
 
 Nenhuma. A janela de proximidade dos pares e o critério de escolha da função de valor representativa são decisões do plano.
+
+## Estado da implementação
+
+Implementação e testes incluídos no PR consolidado. Evidências e critérios de aceitação ainda pendentes estão em `../../docs/backend-validation.md`; não declarar validação clínica nem aceitação da base completa antes de resolver essas pendências.
