@@ -42,7 +42,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 
 - A configuração escolhe a forma da contribuição de cada critério: `livre` (padrão; a contribuição é monótona, mas pode crescer mais no início ou no fim da escala) ou `linear` (cada ponto da escala vale o mesmo, por exemplo dor de 3 para 4 conta igual a de 8 para 9).
 - Na forma `linear`, só os pesos variam entre as ponderações compatíveis. A função representativa continua sendo escolhida entre elas, sem fixar um único conjunto de pesos.
-- A parametrização demonstrativa usa a forma `linear`, a ordem dos pesos igual à ordem dos swings (deterioração > limitação > dor > comorbidades > ASA > distância) e faixas de ±10% em torno do peso normalizado. Motivo: no dataset, a forma livre era a maior fonte de incerteza; com esta configuração, pares a 50 posições de distância deixam de ser incertos (de 464 para cerca de 1 em 875), e a incerteza restante fica entre vizinhos próximos, onde o tribunal atua. Continua sendo premissa demonstrativa, sem validação clínica.
+- A parametrização demonstrativa usa a forma `linear`, a ordem dos pesos igual à ordem dos swings (deterioração > limitação > dor > comorbidades > ASA > distância) e faixas de ±10% em torno do peso normalizado. Motivo: no dataset, a forma livre era a maior fonte de incerteza; com esta configuração, os pares incertos caem de 828 para 612 entre vizinhos, de 736 para 280 a 10 posições e de 464 para 0 a 50 posições. A incerteza restante fica entre vizinhos próximos, onde o tribunal atua. Continua sendo premissa demonstrativa, sem validação clínica.
 
 ### Ordenação robusta
 

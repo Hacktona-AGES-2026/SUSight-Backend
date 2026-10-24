@@ -5,6 +5,7 @@
 A configuração exige seis escalas fixas (`minimo`, `maximo`, `fonte`), seis faixas de
 peso (`minimo`, `maximo`, `fonte`) e 10–20 comparações únicas (`antes`, `depois`,
 `fonte`). `ordem_pesos` permite relações estritas (`maior`, `menor`, `fonte`).
+`marginal` escolhe a forma de cada critério: `livre` (padrão) ou `linear`.
 `margem` define a diferença mínima de uma preferência estrita; `janela` define os
 pares finais avaliados (1 = todos os vizinhos). `versao` identifica a parametrização;
 `demonstrativa` deve identificar testes sem validação clínica.
@@ -19,7 +20,9 @@ a equipe precisa revisar as fontes informadas.
 
 Cada critério tem função marginal linear por partes, com nós em 0, 0.5 e 1. Os 12
 incrementos não negativos somam 1; a soma dos incrementos de cada critério é seu
-peso de swing. Faixas e comparações definem um conjunto de funções compatíveis.
+peso de swing. Com `marginal: "linear"`, os dois incrementos de cada critério são
+iguais (igualdades em `A_eq`, fora da folga da função representativa), e só os pesos
+variam. Faixas e comparações definem um conjunto de funções compatíveis.
 HiGHS resolve a viabilidade e os extremos da diferença de valor entre pacientes.
 A função representativa maximiza a menor folga normalizada às restrições.
 
@@ -60,7 +63,9 @@ Referência do solver: https://docs.scipy.org/doc/scipy/reference/optimize.linpr
 
 `tools/acceptance.py` registra swings ilustrativos: deterioração 100,
 limitação 80, dor 70, comorbidades 60, ASA 40 e distância 20. Normaliza a soma e usa
-faixas de 75% a 125% de cada peso normalizado; dez pares monotonicamente dominantes
+faixas de 90% a 110% de cada peso normalizado, a ordem dos pesos igual à ordem dos
+swings e forma `linear`. No dataset completo, pares vizinhos incertos caem de 828 para
+612, a 10 posições de 736 para 280 e a 50 posições de 464 para 0. Dez pares monotonicamente dominantes
 dentro do grupo verificam a integração. Essa escolha é uma hipótese de protótipo,
 não uma elicitação médica nem dado atribuído a SWALIS/WCWL/CPAC. Fontes, faixas,
 escalas e os pares aparecem no relatório e precisam de revisão antes de uso real.
