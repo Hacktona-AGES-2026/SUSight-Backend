@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -79,6 +80,8 @@ class Preferences(Strict):
     escalas: dict[str, Scale]
     pesos: dict[str, Weight]
     ordem_pesos: list[WeightOrder] = Field(default_factory=list)
+    # "linear": both halves of each scale weigh the same; "livre": any monotone shape.
+    marginal: Literal["livre", "linear"] = "livre"
     comparacoes: list[Pair] = Field(min_length=10, max_length=20)
     janela: int = Field(default=1, ge=1, le=50)
     margem: float = Field(default=1e-5, ge=1e-6, le=0.01)
@@ -207,6 +210,14 @@ class ROR:
         self.nvars = 2 * len(CRITERIA)
         self.features = {sid: self.basis(r["criterios"]) for sid, r in self.rows.items()}
         self.constraints = []
+        # Equalities go to A_eq, not to the slack rows of center(): as two inequalities
+        # they would force the minimum normalized slack to zero.
+        self.equalities = []
+        if preferences.marginal == "linear":
+            for i, criterion in enumerate(CRITERIA):
+                v = np.zeros(self.nvars)
+                v[2 * i], v[2 * i + 1] = 1, -1
+                self.equalities.append((criterion + ":linear", v))
         for i, criterion in enumerate(CRITERIA):
             v = np.zeros(self.nvars)
             v[2 * i : 2 * i + 2] = 1
@@ -254,8 +265,8 @@ class ROR:
             objective,
             A_ub=[v for _, v, _ in constraints] or None,
             b_ub=[b for _, _, b in constraints] or None,
-            A_eq=[np.ones(self.nvars)],
-            b_eq=[1.0],
+            A_eq=[np.ones(self.nvars)] + [v for _, v in self.equalities],
+            b_eq=[1.0] + [0.0] * len(self.equalities),
             bounds=[(0.0, 1.0)] * self.nvars,
             method="highs",
             options={"primal_feasibility_tolerance": 1e-9},
@@ -286,8 +297,8 @@ class ROR:
             np.r_[np.zeros(self.nvars), -1.0],
             A_ub=A,
             b_ub=[b for _, b in rows],
-            A_eq=[np.r_[np.ones(self.nvars), 0.0]],
-            b_eq=[1.0],
+            A_eq=[np.r_[np.ones(self.nvars), 0.0]] + [np.r_[v, 0.0] for _, v in self.equalities],
+            b_eq=[1.0] + [0.0] * len(self.equalities),
             bounds=[(0.0, 1.0)] * self.nvars + [(0.0, None)],
             method="highs",
         )
