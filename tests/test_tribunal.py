@@ -252,7 +252,7 @@ async def test_restart_recovers_interrupted_claim(setup):
 
 
 def test_doctor_can_disagree_with_consultative_opinion(tmp_path):
-    provider = FakeProvider(verdicts={a: "contra" for a in ["evidencias", "contestacao", "equidade"]})
+    provider = FakeProvider(verdicts={a: "contra" for a in ["evidencias", "contestacao", "equidade", "juiz"]})
     app = create_app(tmp_path / "override.sqlite", provider, TOKEN, start_worker=False)
     with TestClient(app) as client:
         client.headers["Authorization"] = "Bearer " + TOKEN
@@ -297,3 +297,47 @@ def proposal_reference():
     body = proposal()
     body["evidencias_ids"] = [e["evidencia_id"] for e in body.pop("evidencias")]
     return body
+
+
+async def test_judge_decides_after_reading_the_three_votes(setup):
+    class Judged(FakeProvider):
+        async def analyze(self, agent, context):
+            if agent == "juiz":
+                self.judge_saw = [v["agente"] for v in context["votos"]]
+            return await super().analyze(agent, context)
+
+    provider = Judged(verdicts={"juiz": "contra"})
+    result = await Tribunal(setup, provider).process(setup.create(proposal()))
+    opinion = result["opinion"]
+    assert provider.judge_saw == ["evidencias", "contestacao", "equidade"]
+    assert opinion["recomendacao"] == "negar"
+    assert [m["agente"] for m in opinion["manifestacoes"]] == [
+        "evidencias",
+        "contestacao",
+        "equidade",
+        "juiz",
+    ]
+    assert {d["agente"] for d in opinion["divergencias"]} == {"evidencias", "contestacao", "equidade"}
+
+
+async def test_rejection_returns_the_reason_and_reruns_the_tribunal(setup):
+    pid = setup.create(proposal())
+    provider = FakeProvider()
+    tribunal = Tribunal(setup, provider)
+    await tribunal.process(pid)
+    setup.decide(pid, "medico-test", "rejeitar", "Falta laudo recente do joelho.")
+    rerun = [p for p in setup.list_proposals(["aguardando_tribunal"], None)]
+    assert len(rerun) == 1 and rerun[0]["proposta_id"] != pid
+    new = setup.get(rerun[0]["proposta_id"])["body"]
+    assert new["devolutiva"] == "Falta laudo recente do joelho." and new["rodada"] == 2
+    provider.contexts.clear()
+    await tribunal.process(rerun[0]["proposta_id"])
+    assert all(c["devolutiva_medico"] == "Falta laudo recente do joelho." for c in provider.contexts)
+
+
+async def test_rejection_stops_returning_after_three_rounds(setup):
+    body = proposal() | {"rodada": 3}
+    pid = setup.create(body)
+    await Tribunal(setup, FakeProvider()).process(pid)
+    setup.decide(pid, "medico-test", "rejeitar", "Ainda sem comprovacao.")
+    assert setup.list_proposals(["aguardando_tribunal"], None) == []

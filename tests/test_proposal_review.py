@@ -93,7 +93,12 @@ def test_detail_has_approved_evidence_full_opinion_and_history(history_api):
     assert evidence["trecho"] == "Resultado explicitamente descrito no documento sintetico."
     assert evidence["pagina"] == 1 and evidence["revisor"] == "doctor" and evidence["revisado_em"]
     opinion = body["parecer"]
-    assert {m["agente"] for m in opinion["manifestacoes"]} == {"evidencias", "contestacao", "equidade"}
+    assert {m["agente"] for m in opinion["manifestacoes"]} == {
+        "evidencias",
+        "contestacao",
+        "equidade",
+        "juiz",
+    }
     assert opinion["recomendacao"] == "aprovar" and "travas" in opinion and opinion["posicao"]
     assert [e["tipo"] for e in body["historico"]][-1] == "entrada_na_fila"
     assert body["decisao"] is None

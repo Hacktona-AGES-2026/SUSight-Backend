@@ -6,7 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from susight.policy import POLICY_VERSION
 
+# evidencias argues to move the patient up, contestacao argues against, equidade is impartial; the judge
+# (juiz) reads the three and gives the final opinion.
 AGENTS = ("evidencias", "contestacao", "equidade")
+JUDGE = "juiz"
 
 
 class Strict(BaseModel):
@@ -96,7 +99,7 @@ class ProposalInput(Strict):
 
 
 class Vote(Strict):
-    agente: Literal["evidencias", "contestacao", "equidade"]
+    agente: Literal["evidencias", "contestacao", "equidade", "juiz"]
     veredito: Literal["a_favor", "contra", "ajustar"]
     posicao_sugerida: int | None = Field(default=None, ge=1)
     justificativa: str = Field(min_length=10, max_length=2000)

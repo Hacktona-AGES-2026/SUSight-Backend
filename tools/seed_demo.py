@@ -61,6 +61,7 @@ class DemoProvider:
             "contestacao": "O documento mais recente e antigo e o relato isolado nao comprova a mudanca.",
             "equidade": "A mudanca respeita o limite por reavaliacao e a hierarquia da fila.",
         }[agent]
+            "juiz": "Pesados os tres argumentos, as evidencias aprovadas sustentam o parecer final.",
         verdict = "contra" if agent == "contestacao" and context["_demo_contra"] else "a_favor"
         return Vote(
             agente=agent,
