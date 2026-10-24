@@ -37,12 +37,17 @@ CRITERIA = {"limitacao": 2, "asa": 2, "dor": 6, "comorbidades": 1, "deterioracao
 PROPOSALS = {
     "SOL-1014": (12, ("exame_imagem", "piora", "Raio-X do joelho mostra piora articular."), "contra"),
     "SOL-1016": (14, ("consulta_reavaliacao", "piora", "Consulta registra novas crises de dor."), "a_favor"),
+    "SOL-1008": (6, ("consulta_reavaliacao", "piora", "Reavaliacao registra piora do quadro."), "a_favor"),
     "SOL-1010": (
         8,
         ("internacao", "atendimento", "Atendimento de urgencia registrado no periodo."),
         "a_favor",
     ),
 }
+
+
+# Paciente de demonstração do app Pulse: entra com este CPF e este código de 6 dígitos.
+APP_PATIENT = ("52998224725", "123456", "PAC-1008", "SOL-1008")
 
 
 class DemoProvider:
@@ -141,6 +146,16 @@ def seed(database, password):
             provider.analyze = original
 
     asyncio.run(run())
+
+    # O paciente do app: um pedido de exame em aberto e a conta com CPF e codigo de 6 digitos.
+    cpf, code, patient_id, sid = APP_PATIENT
+    store.provision_account(cpf, "paciente", [patient_id], code)
+    pid = next(p for p, s_ in created if s_ == sid)
+    exams = [
+        {"exame": "Risco cirurgico", "explicacao": "Envie o exame de risco cirurgico recente."},
+        {"exame": "Eletrocardiograma", "explicacao": "Exame pre-operatorio."},
+    ]
+    store.decide(pid, "medico-demo", "pedir_informacoes", "Faltam exames para avaliar a piora.", None, exams)
     return len(rows), len(created)
 
 
@@ -156,3 +171,4 @@ if __name__ == "__main__":
     patients, proposals = seed(path, args.password)
     print(f"Fila com {patients} pacientes e {proposals} propostas prontas em {path}")
     print("Contas: medico-demo e admin-demo, senha:", args.password)
+    print(f"App do paciente: CPF {APP_PATIENT[0]}, codigo {APP_PATIENT[1]}")
