@@ -1,131 +1,142 @@
 {
-  "versao": "demo-1",
+  "versao": "swing-demo-2",
   "demonstrativa": true,
+  "swings_demonstrativos": {
+    "deterioracao": 100.0,
+    "espera": 90.0,
+    "limitacao": 80.0,
+    "dor": 70.0,
+    "comorbidades": 60.0,
+    "asa": 40.0,
+    "distancia": 20.0
+  },
   "escalas": {
     "limitacao": {
-      "minimo": 0,
-      "maximo": 3,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 3.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "asa": {
-      "minimo": 1,
-      "maximo": 4,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 1.0,
+      "maximo": 4.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "dor": {
-      "minimo": 0,
-      "maximo": 10,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 10.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "comorbidades": {
-      "minimo": 0,
-      "maximo": 7,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 7.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "espera": {
-      "minimo": 0,
-      "maximo": 120,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 120.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "deterioracao": {
-      "minimo": 0,
-      "maximo": 20,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 20.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "distancia": {
-      "minimo": 0,
-      "maximo": 800,
-      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+      "minimo": 0.0,
+      "maximo": 800.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     }
   },
   "pesos": {
     "limitacao": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.13043478260869565,
+      "maximo": 0.21739130434782608,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "asa": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.06521739130434782,
+      "maximo": 0.10869565217391304,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "dor": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.11413043478260869,
+      "maximo": 0.19021739130434784,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "comorbidades": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.09782608695652174,
+      "maximo": 0.16304347826086957,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "espera": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.14673913043478262,
+      "maximo": 0.24456521739130435,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "deterioracao": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.16304347826086957,
+      "maximo": 0.2717391304347826,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "distancia": {
-      "minimo": 0.01,
-      "maximo": 0.94,
-      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+      "minimo": 0.03260869565217391,
+      "maximo": 0.05434782608695652,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     }
   },
+  "ordem_pesos": [],
   "comparacoes": [
     {
       "antes": "SOL-2022-00002",
       "depois": "SOL-2022-00005",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00003",
-      "depois": "SOL-2022-00009",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "depois": "SOL-2023-00054",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00005",
-      "depois": "SOL-2023-00056",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "depois": "SOL-2024-00104",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00007",
       "depois": "SOL-2022-00005",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00009",
       "depois": "SOL-2024-00089",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00012",
       "depois": "SOL-2022-00005",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00014",
-      "depois": "SOL-2022-00053",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "depois": "SOL-2024-00104",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00018",
       "depois": "SOL-2022-00014",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00019",
       "depois": "SOL-2022-00005",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00020",
       "depois": "SOL-2024-00127",
-      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     }
   ],
-  "janela": 1
+  "janela": 1,
+  "margem": 0.00001
 }

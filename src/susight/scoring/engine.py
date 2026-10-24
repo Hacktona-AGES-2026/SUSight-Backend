@@ -7,13 +7,16 @@ import math
 import re
 import shutil
 import tempfile
+import time
 from pathlib import Path
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from scipy.optimize import linprog
 
+from susight.artifacts import protect, retention
 from susight.dataset.core import LIMITATIONS, RULES
+from susight.priority import priority_group
 
 CRITERIA = ["limitacao", "asa", "dor", "comorbidades", "espera", "deterioracao", "distancia"]
 TOL = 1e-7
@@ -69,6 +72,7 @@ class WeightOrder(Strict):
 class Preferences(Strict):
     versao: str = Field(min_length=1)
     demonstrativa: bool = False
+    swings_demonstrativos: dict[str, float] | None = None
     escalas: dict[str, Scale]
     pesos: dict[str, Weight]
     ordem_pesos: list[WeightOrder] = Field(default_factory=list)
@@ -165,6 +169,7 @@ def prepare(request):
     )
     return {
         "solicitacao_id": request["solicitacao_id"],
+        "paciente_id": request["paciente_id"],
         "criterios": criteria,
         "oncologico": n["oncologico_por_cid"],
         "sem_urgencia": bool(no_urgency),
@@ -207,6 +212,11 @@ class ROR:
         for i, pair in enumerate(preferences.comparacoes):
             if pair.antes not in self.rows or pair.depois not in self.rows:
                 raise ValueError(f"Comparacao {i}: solicitacao ausente/inativa")
+            before, after = priority_group(self.rows[pair.antes]), priority_group(self.rows[pair.depois])
+            if before > after:
+                raise Incompatible([f"par:{i}:contraria_hierarquia"])
+            if before < after:
+                continue
             self.constraints.append(
                 (
                     f"par:{i}:{pair.antes}>{pair.depois}",
@@ -278,6 +288,21 @@ class ROR:
     def relation(self, a, b):
         if (a, b) in self.cache:
             return self.cache[a, b]
+        ga, gb = priority_group(self.rows[a]), priority_group(self.rows[b])
+        if ga != gb:
+            return {
+                "a": a,
+                "b": b,
+                "min_diferenca": None,
+                "max_diferenca": None,
+                "a_necessario": ga < gb,
+                "b_necessario": gb < ga,
+                "a_possivel": ga < gb,
+                "b_possivel": gb < ga,
+                "incerto": False,
+                "empate_necessario": False,
+                "origem": "hierarquia_regra_de_ouro",
+            }
         diff = self.features[a] - self.features[b]
         minimum = float(self.solve(diff).fun)
         maximum = -float(self.solve(-diff).fun)
@@ -292,6 +317,7 @@ class ROR:
             "b_possivel": minimum <= TOL,
             "incerto": minimum < -TOL and maximum > TOL,
             "empate_necessario": abs(minimum) <= TOL and abs(maximum) <= TOL,
+            "origem": "ror_mesmo_grupo",
         }
         self.cache[a, b] = result
         return result
@@ -299,7 +325,15 @@ class ROR:
 
 def order_queue(rows, model):
     scores = {sid: float(v @ model.representative) for sid, v in model.features.items()}
-    base = sorted(rows, key=lambda r: (-scores[r["solicitacao_id"]], -r["dias_em_fila"], r["solicitacao_id"]))
+    base = sorted(
+        rows,
+        key=lambda r: (
+            priority_group(r),
+            -scores[r["solicitacao_id"]],
+            -r["dias_em_fila"],
+            r["solicitacao_id"],
+        ),
+    )
     edges = {r["solicitacao_id"]: set() for r in rows}
     notes = {sid: [] for sid in edges}
     # Hard precedence. Check any reversal against ALL compatible value functions.
@@ -307,6 +341,11 @@ def order_queue(rows, model):
         for b in rows:
             sa, sb = a["solicitacao_id"], b["solicitacao_id"]
             if sa == sb:
+                continue
+            if priority_group(a) != priority_group(b):
+                if priority_group(a) < priority_group(b):
+                    edges[sa].add(sb)
+                    notes[sa].append("hierarquia_regra_de_ouro")
                 continue
             if abs(scores[sa] - scores[sb]) <= TOL and not np.array_equal(
                 model.features[sa], model.features[sb]
@@ -356,6 +395,17 @@ def score_queue(input_dir, preferences_path, output_dir):
     folder, dest = Path(input_dir).resolve(), Path(output_dir).resolve()
     if dest.exists() or folder == dest or folder in dest.parents or dest in folder.parents:
         raise ValueError("Destino existente ou sobreposto a entrada")
+    source_manifest = json.loads((folder / "manifesto.json").read_text())
+    try:
+        created, expires = float(source_manifest["criado_epoch"]), float(source_manifest["expira_epoch"])
+        if (
+            source_manifest["gerado_por"] != "susight-backend"
+            or not 0 < expires - created <= 7 * 24 * 3600
+            or not created <= time.time() < expires
+        ):
+            raise ValueError("Dados tratados expirados ou com manifesto invalido")
+    except (KeyError, TypeError):
+        raise ValueError("Gere novamente o tratamento com manifesto de validade") from None
     prefs = Preferences.model_validate_json(Path(preferences_path).read_text())
     raw = [json.loads(line) for line in (folder / "solicitacoes.jsonl").read_text().splitlines()]
     pending = [r["solicitacao_id"] for r in raw if r["estado"] == "pendente"]
@@ -393,7 +443,7 @@ def score_queue(input_dir, preferences_path, output_dir):
                     if any(p["incerto"] for p in nearby)
                     else "empate necessario"
                     if any(p["empate_necessario"] for p in nearby)
-                    else "necessaria nos pares avaliados"
+                    else "necessaria nos pares avaliados (ROR ou precedencia rigida)"
                     if nearby
                     else "sem par avaliado"
                 )
@@ -426,16 +476,30 @@ def score_queue(input_dir, preferences_path, output_dir):
         save(
             "fila.json",
             [
-                {**r, "posicao": positions[r["solicitacao_id"]], "pontuacao": scores[r["solicitacao_id"]]}
+                {
+                    **r,
+                    "posicao": positions[r["solicitacao_id"]],
+                    "pontuacao": scores[r["solicitacao_id"]],
+                    "grupo_prioridade": priority_group(r),
+                }
                 for r in ordered
             ],
         )
         decisions = (folder / "DECISOES.md").read_text() + "\n# Decisões de pontuação\n\n"
         decisions += "SWALIS é uma adaptação técnica das descrições do desafio: A1 para CID urgente ou oncologia com evento de piora durante espera; A2 para CID C* ou biópsia positiva; B para EVA >=7, limitação grave ou piora; C para EVA >=4 ou limitação moderada; D para demais. Exige revisão clínica.\n"
         decisions += "Comorbidades: HAS, DM e obesidade =1; cardiopatia e DPOC =2. Deterioração: internação=2, demais eventos documentados=1, relato=0.25. São aproximações demonstrativas, não escalas clínicas validadas.\n"
+        decisions += "Hierarquia antes da ROR: grupo protegido antes de sem urgencia. Utilidade e dominancia por espera so se comparam dentro do grupo. Comparacoes entre grupos sao precedencias, nao diferencas aditivas.\n"
         decisions += "Nós marginais 0, 0.5 e 1 nas escalas explícitas. Incerto exige reversão estrita; empate necessário é separado. Travas conflitantes impedem publicação.\n"
         decisions += "Preferências e fontes:\n```json\n" + prefs.model_dump_json(indent=2) + "\n```\n"
         (staging / "DECISOES.md").write_text(decisions)
+        manifest = retention()
+        upstream = json.loads((folder / "manifesto.json").read_text())
+        if upstream.get("expira_epoch") is not None:
+            if upstream["expira_epoch"] <= time.time():
+                raise ValueError("Dados tratados expirados")
+            manifest["expira_epoch"] = min(manifest["expira_epoch"], upstream["expira_epoch"])
+        save("manifesto.json", manifest)
+        protect(staging)
         staging.rename(dest)
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)

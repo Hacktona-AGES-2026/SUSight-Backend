@@ -60,6 +60,9 @@ def test_strict_reversibility_is_not_tie():
         {"solicitacao_id": "C", "criterios": dict.fromkeys(CRITERIA, 5)},
         {"solicitacao_id": "D", "criterios": dict.fromkeys(CRITERIA, 5)},
     ]
+    for row in rows:
+        row.setdefault("oncologico", False)
+        row.setdefault("sem_urgencia", False)
     model = ROR(rows, preferences(rows))
     assert model.relation("A", "B")["incerto"]
     assert not model.relation("C", "D")["incerto"]
@@ -79,9 +82,8 @@ def test_gold_cannot_silently_reverse_necessary_preference():
     rows = synthetic()
     rows[0]["oncologico"] = True
     rows[4]["sem_urgencia"] = True
-    model = ROR(rows, preferences(rows))
-    with pytest.raises(ValueError, match="necessaria"):
-        order_queue(rows, model)
+    with pytest.raises(Incompatible, match="hierarquia"):
+        ROR(rows, preferences(rows))
 
 
 def test_regulation_has_no_score_effect():
@@ -138,26 +140,26 @@ def test_export_and_coverage(dataset, tmp_path):
 
 def test_necessary_tie_can_be_reordered_by_gold():
     rows = synthetic()
-    # The last two patients have identical features: both weak relations are necessary.
-    rows[3]["criterios"] = rows[4]["criterios"].copy()
-    rows[3]["oncologico"] = True
-    rows[4]["sem_urgencia"] = True
-    prefs = preferences(synthetic())
-    prefs.comparacoes = [p for p in prefs.comparacoes if (p.antes, p.depois) != ("4", "3")]
-    # One extra strict reference to keep 10 comparisons while avoiding a forced tie reversal.
-    extra = {
-        "solicitacao_id": "X",
-        "criterios": dict.fromkeys(CRITERIA, 9),
-        "dias_em_fila": 9,
-        "oncologico": False,
-        "sem_urgencia": False,
-    }
-    from susight.scoring.engine import Pair
-
-    prefs.comparacoes.append(Pair(antes="X", depois="4", fonte="Fixture sintetica"))
-    model = ROR(rows + [extra], prefs)
-    order, _, _ = order_queue(rows + [extra], model)
-    assert [r["solicitacao_id"] for r in order].index("3") < [r["solicitacao_id"] for r in order].index("4")
+    rows += [
+        {
+            "solicitacao_id": "ONCO",
+            "criterios": dict.fromkeys(CRITERIA, 5),
+            "dias_em_fila": 1,
+            "oncologico": True,
+            "sem_urgencia": False,
+        },
+        {
+            "solicitacao_id": "CALMO",
+            "criterios": dict.fromkeys(CRITERIA, 5),
+            "dias_em_fila": 999,
+            "oncologico": False,
+            "sem_urgencia": True,
+        },
+    ]
+    model = ROR(rows, preferences(rows))
+    order, _, _ = order_queue(rows, model)
+    ids = [r["solicitacao_id"] for r in order]
+    assert ids.index("ONCO") < ids.index("CALMO")
 
 
 def test_official_verifier_synthetic_end_to_end(dataset, tmp_path):
@@ -226,3 +228,44 @@ def test_representative_tie_does_not_reverse_one_way_necessity():
     order, _, _ = order_queue(rows, model)
     ids = [r["solicitacao_id"] for r in order]
     assert ids.index("A") < ids.index("B")
+
+
+def test_hierarchy_overrides_marginal_dominance_without_falsifying_ror():
+    rows = synthetic()
+    rows += [
+        {
+            "solicitacao_id": "ONCO",
+            "criterios": dict.fromkeys(CRITERIA, 0),
+            "oncologico": True,
+            "sem_urgencia": False,
+            "dias_em_fila": 1,
+        },
+        {
+            "solicitacao_id": "CALMO",
+            "criterios": dict.fromkeys(CRITERIA, 10),
+            "oncologico": False,
+            "sem_urgencia": True,
+            "dias_em_fila": 999,
+        },
+    ]
+    model = ROR(rows, preferences(rows))
+    relation = model.relation("ONCO", "CALMO")
+    assert relation["origem"] == "hierarquia_regra_de_ouro"
+    assert relation["min_diferenca"] is None and relation["a_necessario"]
+    order, _, _ = order_queue(rows, model)
+    ids = [r["solicitacao_id"] for r in order]
+    assert ids.index("ONCO") < ids.index("CALMO")
+
+
+def test_expired_treated_data_is_rejected_before_any_scoring(dataset, tmp_path):
+    source = dataset()
+    treat(source, tmp_path / "treated")
+    path = tmp_path / "treated/manifesto.json"
+    manifest = json.loads(path.read_text())
+    manifest["criado_epoch"] = 0
+    manifest["expira_epoch"] = 1
+    path.write_text(json.dumps(manifest))
+    # Preferences need not even be opened when source data is expired.
+    with pytest.raises(ValueError, match="expirados"):
+        score_queue(tmp_path / "treated", tmp_path / "missing.json", tmp_path / "out")
+    assert not (tmp_path / "out").exists()
