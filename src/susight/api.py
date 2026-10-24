@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import csv
+import io
 import os
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import Field, field_validator, model_validator
 
 from .access import Access
@@ -53,6 +55,14 @@ class Decision(Strict):
         if len(value) < 3:
             raise ValueError("Nome do medico obrigatorio")
         return value
+
+
+class ContestInput(Strict):
+    motivo: str = Field(min_length=3, max_length=2000)
+
+
+class ConclusionInput(Strict):
+    justificativa: str = Field(min_length=3, max_length=2000)
 
 
 class ReferenceVersion(Strict):
@@ -130,11 +140,46 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
     @app.get("/fila", dependencies=[Depends(authenticate)])
     def current_queue(principal=principal_dependency):
         version, rows = store.queue()
+        disputed = store.disputed()
         return {
             "politica": POLICY_VERSION,
             "versao": version,
-            "pacientes": [r for r in rows if principal.permits(r)],
+            "pacientes": [
+                r | {"em_reavaliacao": r["solicitacao_id"] in disputed} for r in rows if principal.permits(r)
+            ],
         }
+
+    @app.get("/fila/exportacao.csv")
+    def export_queue(principal=principal_dependency):
+        professional(principal)
+        version, rows = store.queue()
+        rows = [r for r in rows if principal.permits(r)]
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow(["solicitacao_id", "posicao", "justificativa"])
+        writer.writerows([r["solicitacao_id"], r["posicao"], r.get("justificativa", "")] for r in rows)
+        store.log_export(principal.id, version, len(rows))
+        return Response(out.getvalue(), media_type="text/csv; charset=utf-8")
+
+    @app.post("/solicitacoes/{sid}/contestacao", status_code=201)
+    def contest(sid: str, body: ContestInput, principal=principal_dependency):
+        professional(principal)
+        row = permit_case(sid, principal)
+        try:
+            store.open_dispute(sid, row.get("paciente_id"), principal.id, body.motivo)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"solicitacao_id": sid, "situacao": "em_reavaliacao"}
+
+    @app.post("/solicitacoes/{sid}/contestacao/conclusao")
+    def conclude_contest(sid: str, body: ConclusionInput, principal=principal_dependency):
+        professional(principal)
+        permit_case(sid, principal)
+        try:
+            store.conclude_dispute(sid, principal.id, body.justificativa)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"solicitacao_id": sid, "situacao": "concluida", "resultado": "posicao_mantida"}
 
     @app.put("/fila", dependencies=[Depends(authenticate)])
     def import_queue(payload: QueueImport, principal=principal_dependency):
@@ -264,7 +309,7 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
                 store.approved_payload(eid, body.solicitacao_id) for eid in body.evidencias_ids
             ]
             payload = ProposalInput.model_validate(payload).model_dump()
-            pid = store.create(payload)
+            pid = store.create(payload, principal.id)
         except (ValueError, KeyError) as exc:
             raise HTTPException(422, "Proposta ou evidencia invalida: " + str(exc)) from None
         return {"proposta_id": pid, "situacao": "aguardando_tribunal"}

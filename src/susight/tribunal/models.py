@@ -24,6 +24,9 @@ class QueuePatient(Strict):
     sem_urgencia: bool
     sem_urgencia_verificador: bool = False
     posicao: int = Field(ge=1)
+    justificativa: str = Field(default="", max_length=2000)
+    # Read-only flag served by GET /fila (spec 008); accepted on import but never stored.
+    em_reavaliacao: bool | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
     def cid_flag(self):

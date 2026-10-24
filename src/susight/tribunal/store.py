@@ -46,6 +46,12 @@ class Store:
             CREATE TABLE IF NOT EXISTS exam_requests(id TEXT PRIMARY KEY, sid TEXT NOT NULL, paciente_id TEXT,
               proposal_id TEXT NOT NULL, exame TEXT NOT NULL, explicacao TEXT NOT NULL, actor TEXT NOT NULL,
               created_at TEXT NOT NULL, status TEXT NOT NULL, document_id TEXT, updated_at TEXT NOT NULL);
+            -- Disputes and export log (spec 008): audit records, never expire, no CSV content.
+            CREATE TABLE IF NOT EXISTS disputes(id INTEGER PRIMARY KEY, sid TEXT NOT NULL, paciente_id TEXT,
+              actor TEXT NOT NULL, motivo TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL,
+              resultado TEXT, justificativa TEXT, concluded_at TEXT);
+            CREATE TABLE IF NOT EXISTS exports(id INTEGER PRIMARY KEY, actor TEXT NOT NULL, created_at TEXT NOT NULL,
+              versao_fila INTEGER NOT NULL, linhas INTEGER NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -107,6 +113,59 @@ class Store:
     def _queued(self, db, version, sid):
         row = db.execute("SELECT body FROM queues WHERE version=?", (version,)).fetchone()
         return next((r for r in json.loads(row["body"]) if r["solicitacao_id"] == sid), {}) if row else {}
+
+    def open_dispute(self, sid, patient, actor, reason):
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute(
+                "SELECT 1 FROM disputes WHERE sid=? AND status='em_reavaliacao'", (sid,)
+            ).fetchone():
+                raise ValueError("Solicitacao ja esta em reavaliacao")
+            db.execute(
+                "INSERT INTO disputes(sid,paciente_id,actor,motivo,created_at,status) VALUES (?,?,?,?,?,?)",
+                (sid, patient, actor, reason, self.instant(), "em_reavaliacao"),
+            )
+            self._event(
+                db,
+                sid,
+                patient,
+                "contestacao",
+                actor,
+                "Posição contestada; solicitação em reavaliação.",
+                reason,
+            )
+
+    def _conclude_dispute(self, db, sid, actor, result, justification=None):
+        row = db.execute("SELECT * FROM disputes WHERE sid=? AND status='em_reavaliacao'", (sid,)).fetchone()
+        if row is None:
+            return False
+        db.execute(
+            "UPDATE disputes SET status='concluida',resultado=?,justificativa=?,concluded_at=? WHERE id=?",
+            (result, justification, self.instant(), row["id"]),
+        )
+        text = {
+            "nova_proposta": "Reavaliação concluída: nova proposta enviada para análise.",
+            "posicao_mantida": "Reavaliação concluída: posição mantida.",
+        }[result]
+        self._event(db, sid, row["paciente_id"], "reavaliacao_concluida", actor, text, justification)
+        return True
+
+    def conclude_dispute(self, sid, actor, justification):
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not self._conclude_dispute(db, sid, actor, "posicao_mantida", justification):
+                raise ValueError("Nao ha contestacao em reavaliacao")
+
+    def disputed(self):
+        with self.db() as db:
+            return {r[0] for r in db.execute("SELECT sid FROM disputes WHERE status='em_reavaliacao'")}
+
+    def log_export(self, actor, version, lines):
+        with self.db() as db:
+            db.execute(
+                "INSERT INTO exports(actor,created_at,versao_fila,linhas) VALUES (?,?,?,?)",
+                (actor, self.instant(), version, lines),
+            )
 
     def history(self, sid):
         with self.db() as db:
@@ -295,7 +354,7 @@ class Store:
             raise ValueError("Evidencia nao aprovada para esta solicitacao")
         return row["body"]["evidencia"]
 
-    def create(self, body):
+    def create(self, body, actor="sistema"):
         self.purge_expired()
         pid = uuid4().hex
         with self.db() as db:
@@ -308,6 +367,7 @@ class Store:
                 "INSERT INTO proposals(id,body,status,created_at,expires) VALUES (?,?,?,?,?)",
                 (pid, json.dumps(body), "aguardando_tribunal", self.instant(), expiry),
             )
+            self._conclude_dispute(db, body["solicitacao_id"], actor, "nova_proposta")
         return pid
 
     def get(self, pid):
