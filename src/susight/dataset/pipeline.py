@@ -10,6 +10,8 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
+from susight.artifacts import protect, retention
+
 from .core import (
     LIMITATIONS,
     REFERENCE,
@@ -311,6 +313,7 @@ def treat(input_dir, output_dir, reference=REFERENCE):
         dump(
             staging / "manifesto.json",
             {
+                **retention(),
                 "referencia": reference.isoformat(),
                 "entrada_sha256": hashes,
                 "regras_sha256": stable_id(RULES),
@@ -320,6 +323,7 @@ def treat(input_dir, output_dir, reference=REFERENCE):
                 "saida_sha256": output_hashes,
             },
         )
+        protect(staging)
         staging.rename(dest)
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
