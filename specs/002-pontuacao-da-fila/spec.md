@@ -93,6 +93,10 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 - [ ] Toda premissa demonstrativa está identificada como tal; nenhuma faixa numérica aparece atribuída a uma referência sem sustentação registrada.
 - [ ] O cenário de aceitação verifica autorização dos relatórios e expiração das saídas temporárias de demonstração, preservando a fonte original imutável.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Tratamento do dataset: limpeza, deduplicação e extração de sinais do texto livre (issue #5). Esta spec recebe os dados já tratados.

@@ -27,6 +27,10 @@ Esta spec separa o que expira (conteúdo de documentos e seus derivados) do que 
 - [ ] Um paciente não consegue ler eventos de outra solicitação.
 - [ ] A ordem do histórico é do mais recente ao mais antigo.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Telas de histórico (specs do app e do web).

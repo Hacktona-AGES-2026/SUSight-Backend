@@ -65,6 +65,10 @@ O papel ampliado de Contestação está em revisão e ainda não foi implementad
 - [ ] Discordância médica é auditada e continua sujeita às travas; o tribunal não libera um conflito de modelagem nem altera o CID.
 - [ ] O cenário sintético de aceitação verifica retenção de até sete dias e impede acesso por usuário sem permissão para o caso.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Ordenação inicial da fila (vem da pontuação, issue #6).

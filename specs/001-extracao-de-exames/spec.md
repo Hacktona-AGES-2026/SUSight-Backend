@@ -97,6 +97,10 @@ Antes do envio, apresentar termo legível com finalidade da extração, dados us
 - [ ] Testes do conteúdo efetivamente enviado externamente confirmam ausência dos identificadores sintéticos originais em todas as ocorrências e nenhuma saída externa em caso de falha de mascaramento.
 - [ ] O teste de autorização impede acesso a documento de outro paciente ou fora da permissão profissional; arquivos e derivados da demonstração expiram juntos em até sete dias do envio.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Cálculo de pontuação, definição de pesos, ordenação ou reposicionamento da fila.

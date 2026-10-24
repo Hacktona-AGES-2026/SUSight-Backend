@@ -112,6 +112,10 @@ Esta feature prepara os dados para a pontuação da fila (spec 002, issue #6). C
 - [ ] A aprovação do entregável identifica responsável, data e revisão das exclusões; campos documentais não aprovados permanecem fora dos dados aprovados, sem receber imputação disfarçada de extração.
 - [ ] O cenário sintético verifica acesso restrito e expiração das cópias temporárias em até sete dias, preservando os arquivos originais e suas evidências de integridade.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Swing weighting, ROR, definição de escalas clínicas, pesos e estimativa da classe SWALIS (issue #6).

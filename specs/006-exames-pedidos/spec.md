@@ -25,6 +25,10 @@ Quando o médico escolhe "pedir informações" (web 004), o paciente precisa ver
 - [ ] Pedir informações não muda posição na fila.
 - [ ] A quantidade de pedidos pendentes pode ser consultada para o widget.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Telas de upload e de revisão.

@@ -16,6 +16,10 @@ Descreva o que o usuário vê e faz, passo a passo. Sem detalhes de tecnologia.
 - [ ] <condição verificável>
 - [ ] <condição verificável>
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. <tipo de teste>
+
 ## Fora do escopo
 
 O que esta feature não faz.

@@ -28,6 +28,10 @@ O app do paciente (spec 005-login) e o web do médico (spec 002-login) precisam 
 - [ ] Um paciente não consegue ler dados de outro; um médico sem permissão não revisa o caso.
 - [ ] Identificador e senha não aparecem em registros de log.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Login pelo gov.br.
