@@ -41,6 +41,10 @@ O app do paciente (specs 002, 003 e 004) mostra notificações no sino, permite 
 - [ ] Notificações não contêm diagnóstico, nome completo nem CNS.
 - [ ] Ao sair da conta, o dispositivo deixa de receber avisos.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Telas e widgets (specs do app).

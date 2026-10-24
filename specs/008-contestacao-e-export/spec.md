@@ -34,6 +34,10 @@ O web (specs 005 e 006) permite ao médico contestar a posição de um paciente 
 - [ ] O CSV só tem a ordem da fila aprovada.
 - [ ] Usuário sem autenticação ou sem permissão não exporta nem contesta.
 
+## Testes (TDD)
+
+Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos um teste automatizado que falha primeiro (red), e a implementação só termina quando todos passam (green). Critério que não puder ser testado automaticamente leva uma justificativa escrita. Testes automatizados com pytest, incluindo o verificador oficial da fila quando houver `fila_priorizada.csv` (`tools/verificar_fila_priorizada.py`).
+
 ## Fora do escopo
 
 - Telas de contestação e de export.
