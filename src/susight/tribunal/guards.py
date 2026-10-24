@@ -62,13 +62,4 @@ def guard(queue, sid, target):
         priority_group(a) > priority_group(b) for i, a in enumerate(candidate) for b in candidate[i + 1 :]
     ):
         return {"liberada": False, "posicao": old, "travas": reasons + ["hierarquia_regra_de_ouro"]}
-    if target < old:
-        crossed = [r for r in rest if target <= r["posicao"] < old]
-        if any(
-            priority_group(r) == priority_group(patient)
-            and r["pontuacao"] > patient["pontuacao"] + 1e-7
-            and r["dias_em_fila"] > patient["dias_em_fila"]
-            for r in crossed
-        ):
-            return {"liberada": False, "posicao": old, "travas": reasons + ["prioridade_maior_e_mais_espera"]}
     return {"liberada": True, "posicao": target, "travas": reasons}

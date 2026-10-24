@@ -6,6 +6,7 @@ from conftest import approve_in_store, register_http_evidence
 from fastapi.testclient import TestClient
 
 from susight.api import create_app
+from susight.policy import POLICY_VERSION
 from susight.tribunal.guards import guard, validate_queue
 from susight.tribunal.models import ProposalInput, Vote
 from susight.tribunal.service import Tribunal, consolidate_votes
@@ -17,6 +18,7 @@ TOKEN = "test-token-susight-123456"
 def queue(n=20):
     return [
         {
+            "politica": POLICY_VERSION,
             "solicitacao_id": str(i),
             "cid": "K409",
             "dias_em_fila": 100,
@@ -83,12 +85,12 @@ def setup(tmp_path):
     return store
 
 
-def test_guards_limit_dominance_and_gold():
+def test_guards_limit_no_wait_dominance_and_gold():
     rows = queue()
     assert guard(rows, "20", 1)["posicao"] == 18
     rows[18]["pontuacao"] = 0.8
     rows[18]["dias_em_fila"] = 200
-    assert not guard(rows, "20", 18)["liberada"]
+    assert guard(rows, "20", 18)["liberada"]
     rows = queue()
     for row in rows[:-1]:
         row["sem_urgencia"] = True

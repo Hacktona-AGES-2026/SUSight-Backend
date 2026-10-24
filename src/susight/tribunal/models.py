@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from susight.policy import POLICY_VERSION
+
 AGENTS = ("evidencias", "contestacao", "equidade")
 
 
@@ -12,6 +14,7 @@ class Strict(BaseModel):
 
 
 class QueuePatient(Strict):
+    politica: Literal[POLICY_VERSION]
     solicitacao_id: str = Field(min_length=1, max_length=100)
     paciente_id: str | None = None
     cid: str = Field(pattern=r"^[A-Z][0-9]{2}[0-9A-Z]{0,2}$")

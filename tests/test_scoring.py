@@ -5,6 +5,7 @@ import pytest
 from conftest import read_lines
 
 from susight.dataset import treat
+from susight.policy import POLICY_VERSION
 from susight.scoring.engine import CRITERIA, ROR, Incompatible, Preferences, order_queue, prepare, score_queue
 
 
@@ -20,6 +21,7 @@ def preferences(rows, **changes):
                 }
             )
     config = {
+        "politica": POLICY_VERSION,
         "versao": "test",
         "demonstrativa": True,
         "escalas": {c: {"minimo": 0, "maximo": 10, "fonte": "Fixture sintetica"} for c in CRITERIA},
@@ -223,7 +225,7 @@ def test_representative_tie_does_not_reverse_one_way_necessity():
     ]
     model = ROR(rows, preferences(rows))
     # Feasible endpoint: first marginal increment = 1, all remaining increments = 0.
-    model.representative = np.array([1.0] + [0.0] * 13)
+    model.representative = np.array([1.0] + [0.0] * (2 * len(CRITERIA) - 1))
     assert all(v @ model.representative <= bound + 1e-7 for _, v, bound in model.constraints)
     order, _, _ = order_queue(rows, model)
     ids = [r["solicitacao_id"] for r in order]

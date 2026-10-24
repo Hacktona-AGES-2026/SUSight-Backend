@@ -11,6 +11,7 @@ from pydantic import Field, field_validator
 
 from .access import Access
 from .artifacts import purge_artifacts
+from .policy import POLICY_VERSION
 from .tribunal.guards import guard, validate_queue
 from .tribunal.models import (
     Cancellation,
@@ -121,7 +122,11 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
     @app.get("/fila", dependencies=[Depends(authenticate)])
     def current_queue(principal=principal_dependency):
         version, rows = store.queue()
-        return {"versao": version, "pacientes": [r for r in rows if principal.permits(r)]}
+        return {
+            "politica": POLICY_VERSION,
+            "versao": version,
+            "pacientes": [r for r in rows if principal.permits(r)],
+        }
 
     @app.put("/fila", dependencies=[Depends(authenticate)])
     def import_queue(payload: QueueImport, principal=principal_dependency):

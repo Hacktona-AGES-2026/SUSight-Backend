@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import heapq
 import json
 import math
@@ -16,9 +17,10 @@ from scipy.optimize import linprog
 
 from susight.artifacts import protect, retention
 from susight.dataset.core import LIMITATIONS, RULES
+from susight.policy import POLICY_VERSION
 from susight.priority import priority_group
 
-CRITERIA = ["limitacao", "asa", "dor", "comorbidades", "espera", "deterioracao", "distancia"]
+CRITERIA = ["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"]
 TOL = 1e-7
 URGENT_CID = {"I200", "K403", "K400", "K420", "K430", "K800", "N132", "I832"}
 
@@ -70,6 +72,7 @@ class WeightOrder(Strict):
 
 
 class Preferences(Strict):
+    politica: str
     versao: str = Field(min_length=1)
     demonstrativa: bool = False
     swings_demonstrativos: dict[str, float] | None = None
@@ -82,8 +85,15 @@ class Preferences(Strict):
 
     @model_validator(mode="after")
     def all_criteria(self):
+        if self.politica != POLICY_VERSION or "espera" in self.escalas or "espera" in self.pesos:
+            raise ValueError("Politica antiga: gere preferencias sem espera para " + POLICY_VERSION)
+        if self.swings_demonstrativos is not None and (
+            set(self.swings_demonstrativos) != set(CRITERIA)
+            or any(not math.isfinite(v) or v <= 0 for v in self.swings_demonstrativos.values())
+        ):
+            raise ValueError("Swings demonstrativos devem conter somente criterios ativos positivos")
         if set(self.escalas) != set(CRITERIA) or set(self.pesos) != set(CRITERIA):
-            raise ValueError("Escalas e pesos devem conter os sete criterios")
+            raise ValueError("Escalas e pesos devem conter somente os seis criterios ativos, sem espera")
         for order in self.ordem_pesos:
             if order.maior not in CRITERIA or order.menor not in CRITERIA or order.maior == order.menor:
                 raise ValueError("Ordem de pesos invalida")
@@ -129,7 +139,6 @@ def prepare(request):
         "asa": measures["asa"],
         "dor": measures["intensidade_dor_eva"],
         "comorbidades": sum(severity[c] for c in n["comorbidades_identificadas"]),
-        "espera": n["dias_em_fila"] / swalis[1],
         "deterioracao": sum(2 if e["tipo_evento"] == "internacao" else 1 for e in during)
         + 0.25 * len(reports),
         "distancia": measures["distancia_hospital_km"],
@@ -168,6 +177,7 @@ def prepare(request):
         and not re.search(RULES["concepts"]["alarme"], original.get("justificativa_clinica", "").lower())
     )
     return {
+        "politica": POLICY_VERSION,
         "solicitacao_id": request["solicitacao_id"],
         "paciente_id": request["paciente_id"],
         "criterios": criteria,
@@ -330,7 +340,6 @@ def order_queue(rows, model):
         key=lambda r: (
             priority_group(r),
             -scores[r["solicitacao_id"]],
-            -r["dias_em_fila"],
             r["solicitacao_id"],
         ),
     )
@@ -354,8 +363,7 @@ def order_queue(rows, model):
                 if relation["a_necessario"] and not relation["b_necessario"]:
                     edges[sa].add(sb)
             gold = a["oncologico"] and (b["sem_urgencia"] or b.get("sem_urgencia_verificador", False))
-            dominance = scores[sa] > scores[sb] + TOL and a["dias_em_fila"] > b["dias_em_fila"]
-            if gold or dominance:
+            if gold:
                 if scores[sa] < scores[sb] - TOL and (
                     model.relation(sa, sb)["b_necessario"] and not model.relation(sa, sb)["a_necessario"]
                 ):
@@ -434,7 +442,7 @@ def score_queue(input_dir, preferences_path, output_dir):
                 sid = r["solicitacao_id"]
                 contributions = model.features[sid] * model.representative
                 top = sorted(
-                    zip(CRITERIA, [sum(contributions[j : j + 2]) for j in range(0, 14, 2)]),
+                    zip(CRITERIA, [sum(contributions[j : j + 2]) for j in range(0, model.nvars, 2)]),
                     key=lambda x: -x[1],
                 )[:3]
                 nearby = [p for p in relations if sid in (p["a"], p["b"])]
@@ -447,7 +455,7 @@ def score_queue(input_dir, preferences_path, output_dir):
                     if nearby
                     else "sem par avaliado"
                 )
-                text = f"Criterios principais: {', '.join(c for c, _ in top)}. Espera: {r['dias_em_fila']} dias; SWALIS estimada {r['swalis']}. Ordem {classification}."
+                text = f"Criterios principais: {', '.join(c for c, _ in top)}. Ordem {classification}."
                 if notes[sid]:
                     text += " Trava: " + ", ".join(notes[sid]) + "."
                 if r["imputacoes"]:
@@ -466,6 +474,7 @@ def score_queue(input_dir, preferences_path, output_dir):
         save(
             "funcao_representativa.json",
             {
+                "politica": POLICY_VERSION,
                 "incrementos": model.representative.tolist(),
                 "pesos": {
                     c: float(sum(model.representative[2 * i : 2 * i + 2])) for i, c in enumerate(CRITERIA)
@@ -486,13 +495,19 @@ def score_queue(input_dir, preferences_path, output_dir):
             ],
         )
         decisions = (folder / "DECISOES.md").read_text() + "\n# Decisões de pontuação\n\n"
-        decisions += "SWALIS é uma adaptação técnica das descrições do desafio: A1 para CID urgente ou oncologia com evento de piora durante espera; A2 para CID C* ou biópsia positiva; B para EVA >=7, limitação grave ou piora; C para EVA >=4 ou limitação moderada; D para demais. Exige revisão clínica.\n"
+        decisions += "SWALIS é uma adaptação técnica das descrições do desafio: A1 para CID urgente ou oncologia com evento de piora durante espera; A2 para CID C* ou biópsia positiva; B para EVA >=7, limitação grave ou piora; C para EVA >=4 ou limitação moderada; D para demais. A classe e o prazo nao dao preferencia temporal. Exige revisão clínica.\n"
         decisions += "Comorbidades: HAS, DM e obesidade =1; cardiopatia e DPOC =2. Deterioração: internação=2, demais eventos documentados=1, relato=0.25. São aproximações demonstrativas, não escalas clínicas validadas.\n"
-        decisions += "Hierarquia antes da ROR: grupo protegido antes de sem urgencia. Utilidade e dominancia por espera so se comparam dentro do grupo. Comparacoes entre grupos sao precedencias, nao diferencas aditivas.\n"
+        decisions += "Hierarquia antes da ROR: grupo protegido antes de sem urgencia. ROR so se compara dentro do grupo. Espera nao participa de pesos, desempates, pares ou travas; desempate final por ID estavel. Comparacoes entre grupos sao precedencias, nao diferencas aditivas.\n"
         decisions += "Nós marginais 0, 0.5 e 1 nas escalas explícitas. Incerto exige reversão estrita; empate necessário é separado. Travas conflitantes impedem publicação.\n"
         decisions += "Preferências e fontes:\n```json\n" + prefs.model_dump_json(indent=2) + "\n```\n"
         (staging / "DECISOES.md").write_text(decisions)
-        manifest = retention()
+        manifest = {
+            **retention(),
+            "politica": POLICY_VERSION,
+            "preferencias_sha256": hashlib.sha256(prefs.model_dump_json().encode()).hexdigest(),
+            "entrada_manifesto_sha256": hashlib.sha256((folder / "manifesto.json").read_bytes()).hexdigest(),
+            "saida_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in staging.iterdir()},
+        }
         upstream = json.loads((folder / "manifesto.json").read_text())
         if upstream.get("expira_epoch") is not None:
             if upstream["expira_epoch"] <= time.time():

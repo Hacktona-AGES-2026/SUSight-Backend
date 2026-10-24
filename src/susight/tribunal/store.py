@@ -9,6 +9,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from susight.artifacts import TTL
+from susight.policy import POLICY_VERSION
+
+from .guards import validate_queue
 
 
 class EvidenceUnavailable(ValueError):
@@ -41,6 +44,14 @@ class Store:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
                     # Legacy queues lack a trustworthy creation instant: expire conservatively.
                     db.execute(f"ALTER TABLE {table} ADD COLUMN expires REAL NOT NULL DEFAULT 0")
+            if "policy" not in {r[1] for r in db.execute("PRAGMA table_info(queues)")}:
+                db.execute("ALTER TABLE queues ADD COLUMN policy TEXT NOT NULL DEFAULT 'legado'")
+            db.execute(
+                "UPDATE proposals SET status='desatualizada',error='Politica mudou: reimporte a fila e crie nova proposta' "
+                "WHERE status IN ('processando','aguardando_tribunal','tribunal_indisponivel','pronta_para_medico') "
+                "AND CAST(json_extract(body,'$.versao_fila') AS INTEGER) IN (SELECT version FROM queues WHERE policy<>?)",
+                (POLICY_VERSION,),
+            )
             db.execute(
                 "INSERT OR IGNORE INTO counters VALUES ('queue', (SELECT COALESCE(MAX(version),0) FROM queues))"
             )
@@ -85,9 +96,14 @@ class Store:
         with self.db() as db:
             row = db.execute("SELECT * FROM queues ORDER BY version DESC LIMIT 1").fetchone()
             version = db.execute("SELECT value FROM counters WHERE name='queue'").fetchone()[0]
-        return (row["version"], json.loads(row["body"])) if row else (version, [])
+        return (
+            (row["version"], json.loads(row["body"]))
+            if row and row["policy"] == POLICY_VERSION
+            else (version, [])
+        )
 
     def import_queue(self, rows, expected_version, actor="operador-demo"):
+        rows = validate_queue(rows)
         self.purge_expired()
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -95,7 +111,14 @@ class Store:
             if version != expected_version:
                 raise ValueError("Versao da fila desatualizada")
             version += 1
-            db.execute("INSERT INTO queues VALUES (?,?,?)", (version, json.dumps(rows), self.clock() + TTL))
+            db.execute(
+                "INSERT INTO queues(version,body,expires,policy) VALUES (?,?,?,?)",
+                (version, json.dumps(rows), self.clock() + TTL, POLICY_VERSION),
+            )
+            db.execute(
+                "UPDATE proposals SET status='desatualizada',error='Fila reimportada: nova proposta necessaria' "
+                "WHERE status IN ('processando','aguardando_tribunal','tribunal_indisponivel','pronta_para_medico')"
+            )
             db.execute("UPDATE counters SET value=? WHERE name='queue'", (version,))
             db.execute(
                 "INSERT INTO queue_imports VALUES (?,?,?,?)",
@@ -198,7 +221,7 @@ class Store:
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
             queue = db.execute("SELECT * FROM queues ORDER BY version DESC LIMIT 1").fetchone()
-            if not queue or queue["version"] != body["versao_fila"]:
+            if not queue or queue["policy"] != POLICY_VERSION or queue["version"] != body["versao_fila"]:
                 raise ValueError("Versao da fila desatualizada")
             expiry = min(queue["expires"], self._approved(db, body))
             db.execute(
@@ -234,6 +257,19 @@ class Store:
 
     def finish(self, pid, status, opinion=None, error=None, delay=0):
         with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT body FROM proposals WHERE id=?", (pid,)).fetchone()
+            current = db.execute("SELECT version,policy FROM queues ORDER BY version DESC LIMIT 1").fetchone()
+            if row and (
+                not current
+                or current["policy"] != POLICY_VERSION
+                or current["version"] != json.loads(row["body"])["versao_fila"]
+            ):
+                status, opinion, error = (
+                    "desatualizada",
+                    None,
+                    "Fila ou politica mudou: nova proposta necessaria",
+                )
             db.execute(
                 "UPDATE proposals SET status=?,opinion=?,error=?,attempts=attempts+1,next_try=? WHERE id=? AND expires>? AND status='processando'",
                 (
@@ -266,13 +302,17 @@ class Store:
                 raise ValueError("Proposta nao esta pronta para decisao")
             body = json.loads(p["body"])
             version = db.execute("SELECT value FROM counters WHERE name='queue'").fetchone()[0]
-            if version != body["versao_fila"]:
+            active = db.execute("SELECT policy FROM queues WHERE version=?", (version,)).fetchone()
+            if not active or active["policy"] != POLICY_VERSION or version != body["versao_fila"]:
                 raise ValueError("Fila mudou: nova analise necessaria")
             self._approved(db, body)
             if action == "aprovar":
                 if not rows:
                     raise ValueError("Fila resultante ausente")
-                db.execute("INSERT INTO queues VALUES (?,?,?)", (version + 1, json.dumps(rows), p["expires"]))
+                db.execute(
+                    "INSERT INTO queues(version,body,expires,policy) VALUES (?,?,?,?)",
+                    (version + 1, json.dumps(validate_queue(rows)), p["expires"], POLICY_VERSION),
+                )
                 db.execute("UPDATE counters SET value=? WHERE name='queue'", (version + 1,))
             db.execute(
                 "INSERT INTO decisions(proposal_id,actor,action,reason,created_at,expires) VALUES (?,?,?,?,?,?)",

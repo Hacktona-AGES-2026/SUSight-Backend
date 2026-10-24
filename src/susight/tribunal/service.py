@@ -25,7 +25,6 @@ def masked_context(proposal, queue, guarded):
         return {
             "paciente": pseudonym(r["solicitacao_id"]),
             "cid": r["cid"],
-            "dias_em_fila": r["dias_em_fila"],
             "pontuacao": r["pontuacao"],
             "posicao": r["posicao"],
         }

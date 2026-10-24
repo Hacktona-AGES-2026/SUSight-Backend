@@ -12,12 +12,12 @@ from pathlib import Path
 
 from susight.artifacts import protect
 from susight.dataset import treat
+from susight.policy import POLICY_VERSION
 from susight.priority import priority_group
 from susight.scoring.engine import CRITERIA, Preferences, prepare, score_queue
 
 SWINGS = {
     "deterioracao": 100,
-    "espera": 90,
     "limitacao": 80,
     "dor": 70,
     "comorbidades": 60,
@@ -28,16 +28,15 @@ SWINGS = {
 
 def demonstration_preferences(rows):
     total = sum(SWINGS.values())
-    maxima = dict(zip(CRITERIA, [3, 4, 10, 7, 120, 20, 800]))
+    maxima = {"limitacao": 3, "asa": 4, "dor": 10, "comorbidades": 7, "deterioracao": 20, "distancia": 800}
     source = "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     pairs = []
     for a in sorted(rows, key=lambda r: r["solicitacao_id"]):
         for b in sorted(rows, key=lambda r: r["solicitacao_id"]):
             if priority_group(a) != priority_group(b):
                 continue
-            if (
-                all(a["criterios"][c] >= b["criterios"][c] for c in CRITERIA)
-                and a["criterios"]["espera"] > b["criterios"]["espera"] + 2
+            if all(a["criterios"][c] >= b["criterios"][c] for c in CRITERIA) and any(
+                a["criterios"][c] > b["criterios"][c] for c in CRITERIA
             ):
                 pairs.append(
                     {
@@ -49,9 +48,12 @@ def demonstration_preferences(rows):
                 break
         if len(pairs) == 10:
             break
+    if len(pairs) < 10:
+        raise ValueError("Menos de dez pares sinteticos dominantes sem espera; revise as referencias")
     return Preferences.model_validate(
         {
-            "versao": "swing-demo-2",
+            "politica": POLICY_VERSION,
+            "versao": "swing-demo-sem-espera-1",
             "demonstrativa": True,
             "swings_demonstrativos": SWINGS,
             "escalas": {
@@ -171,6 +173,7 @@ def accept(dataset, root):
         if "duplicata_possivel_revisar" in r["avisos"]
     ]
     report = {
+        "politica": POLICY_VERSION,
         "natureza": "aceitacao_tecnica_em_dados_sinteticos",
         "validacao_clinica": False,
         "chamadas_llm": 0,

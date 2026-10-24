@@ -1,9 +1,9 @@
 {
-  "versao": "swing-demo-2",
+  "politica": "priorizacao-sem-espera-v1",
+  "versao": "swing-demo-sem-espera-1",
   "demonstrativa": true,
   "swings_demonstrativos": {
     "deterioracao": 100.0,
-    "espera": 90.0,
     "limitacao": 80.0,
     "dor": 70.0,
     "comorbidades": 60.0,
@@ -31,11 +31,6 @@
       "maximo": 7.0,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
-    "espera": {
-      "minimo": 0.0,
-      "maximo": 120.0,
-      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
-    },
     "deterioracao": {
       "minimo": 0.0,
       "maximo": 20.0,
@@ -49,38 +44,33 @@
   },
   "pesos": {
     "limitacao": {
-      "minimo": 0.13043478260869565,
-      "maximo": 0.21739130434782608,
+      "minimo": 0.16216216216216217,
+      "maximo": 0.2702702702702703,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "asa": {
-      "minimo": 0.06521739130434782,
-      "maximo": 0.10869565217391304,
+      "minimo": 0.08108108108108109,
+      "maximo": 0.13513513513513514,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "dor": {
-      "minimo": 0.11413043478260869,
-      "maximo": 0.19021739130434784,
+      "minimo": 0.14189189189189189,
+      "maximo": 0.23648648648648649,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "comorbidades": {
-      "minimo": 0.09782608695652174,
-      "maximo": 0.16304347826086957,
-      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
-    },
-    "espera": {
-      "minimo": 0.14673913043478262,
-      "maximo": 0.24456521739130435,
+      "minimo": 0.12162162162162163,
+      "maximo": 0.20270270270270271,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "deterioracao": {
-      "minimo": 0.16304347826086957,
-      "maximo": 0.2717391304347826,
+      "minimo": 0.20270270270270271,
+      "maximo": 0.33783783783783783,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     },
     "distancia": {
-      "minimo": 0.03260869565217391,
-      "maximo": 0.05434782608695652,
+      "minimo": 0.04054054054054054,
+      "maximo": 0.06756756756756757,
       "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
     }
   },
@@ -93,7 +83,7 @@
     },
     {
       "antes": "SOL-2022-00003",
-      "depois": "SOL-2023-00054",
+      "depois": "SOL-2022-00047",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
@@ -133,7 +123,7 @@
     },
     {
       "antes": "SOL-2022-00020",
-      "depois": "SOL-2024-00127",
+      "depois": "SOL-2022-00049",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     }
   ],
