@@ -122,9 +122,10 @@ def test_history_is_newest_first(history_api):
 def test_history_is_scoped_to_patient_and_authorized_professional(history_api):
     client, _ = history_api
     approved_evidence(client)
-    for name in ["other_patient", "other"]:
-        as_user(client, name)
-        assert history(client).status_code == 404
+    as_user(client, "other_patient")
+    assert history(client).status_code == 404
+    as_user(client, "other")
+    assert history(client).status_code == 200
     as_user(client, "patient")
     assert history(client, "1").status_code == 404
     assert history(client).status_code == 200

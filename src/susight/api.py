@@ -294,7 +294,7 @@ def create_app(
     def audience(principal):
         if principal.papel == "paciente":
             return "paciente", principal.pacientes
-        return "profissional", None if principal.papel == "admin" else principal.pacientes
+        return "profissional", None if principal.sees_all else principal.pacientes
 
     @app.get("/notificacoes")
     def notifications(principal=principal_dependency):
@@ -570,7 +570,7 @@ def create_app(
     @app.get("/propostas")
     def list_proposals(situacao: list[ProposalStatus] = ready_only, principal=principal_dependency):
         professional(principal)
-        patients = None if principal.papel == "admin" else principal.pacientes
+        patients = None if principal.sees_all else principal.pacientes
         items = store.list_proposals(sorted(set(situacao)), patients)
         return {"total": len(items), "propostas": items}
 

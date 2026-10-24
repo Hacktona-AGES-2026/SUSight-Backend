@@ -100,8 +100,9 @@ def test_patient_and_professional_scopes_and_no_self_approval(api):
     assert client.post("/propostas", json=proposal_reference()).status_code == 403
     assert client.put("/fila", json={"versao_esperada": 1, "pacientes": queue()}).status_code == 403
     client.headers["Authorization"] = "Bearer other"
-    assert client.get("/documentos/" + did).status_code == 404
-    assert client.get("/evidencias/E1").status_code == 404
+    # One shared queue: every doctor sees every case.
+    assert client.get("/documentos/" + did).status_code == 200
+    assert client.get("/evidencias/E1").status_code == 200
     client.headers["Authorization"] = "Bearer doctor"
     assert client.post("/propostas", json=proposal_reference()).status_code == 422
     approved = client.post(
@@ -114,7 +115,7 @@ def test_patient_and_professional_scopes_and_no_self_approval(api):
     client.headers["Authorization"] = "Bearer patient"
     assert client.get(f"/propostas/{pid}/parecer").status_code == 403
     client.headers["Authorization"] = "Bearer other"
-    assert client.get(f"/propostas/{pid}/parecer").status_code == 404
+    assert client.get(f"/propostas/{pid}/parecer").status_code == 200
     client.headers["Authorization"] = "Bearer doctor"
     client.post(f"/propostas/{pid}/tribunal")
     decision = client.post(

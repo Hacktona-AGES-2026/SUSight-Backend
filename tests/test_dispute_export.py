@@ -83,8 +83,6 @@ def test_contest_and_export_require_authentication_and_permission(history_api):
     as_user(client, "patient")
     assert contest(client).status_code == 403
     assert export(client)[0].status_code == 403
-    as_user(client, "other")
-    assert contest(client).status_code == 404
     del client.headers["Authorization"]
     assert contest(client).status_code == 401
     assert export(client)[0].status_code == 401
@@ -130,12 +128,12 @@ def test_export_ignores_proposals_not_yet_approved(history_api):
     assert ("20", 20) in positions(client)
 
 
-def test_doctor_exports_only_own_cases(history_api):
+def test_doctor_exports_the_whole_queue(history_api):
     client, _ = history_api
     as_user(client, "doctor")
     response, rows = export(client)
     assert response.status_code == 200
-    assert [r[0] for r in rows[1:]] == ["20"]
+    assert len(rows) - 1 == 20
 
 
 def test_proposal_reference_still_creates_proposals_without_contest(history_api):

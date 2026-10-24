@@ -15,8 +15,13 @@ class Principal:
     papel: str
     pacientes: frozenset[str] = field(default_factory=frozenset)
 
+    @property
+    def sees_all(self):
+        # One shared queue: every professional sees every patient; only patients are scoped to their own case.
+        return self.papel in {"admin", "medico"}
+
     def permits(self, row):
-        return self.papel == "admin" or row.get("paciente_id") in self.pacientes
+        return self.sees_all or row.get("paciente_id") in self.pacientes
 
 
 class Access:
