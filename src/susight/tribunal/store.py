@@ -132,6 +132,20 @@ class Store:
               bloqueado_ate REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS sessions(token_sha256 TEXT PRIMARY KEY, account_id TEXT NOT NULL,
               created_at TEXT NOT NULL, last_seen REAL NOT NULL);
+            -- Extraction (spec 001): file and derivatives expire with the document.
+            CREATE TABLE IF NOT EXISTS consents(id INTEGER PRIMARY KEY, document_id TEXT NOT NULL,
+              termo_versao TEXT NOT NULL, actor TEXT NOT NULL, accepted_at TEXT NOT NULL, expires REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS document_files(document_id TEXT PRIMARY KEY, mime TEXT NOT NULL,
+              conteudo BLOB NOT NULL, expires REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS extractions(document_id TEXT PRIMARY KEY, situacao TEXT NOT NULL,
+              avisos TEXT NOT NULL, updated_at TEXT NOT NULL, expires REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS extraction_fields(id INTEGER PRIMARY KEY, document_id TEXT NOT NULL,
+              campo TEXT NOT NULL, valor_extraido TEXT, situacao TEXT NOT NULL, confianca TEXT,
+              requer_revisao INTEGER NOT NULL, evidencias TEXT NOT NULL, expires REAL NOT NULL,
+              UNIQUE(document_id, campo));
+            CREATE TABLE IF NOT EXISTS field_reviews(id INTEGER PRIMARY KEY, field_id INTEGER NOT NULL,
+              reviewer TEXT NOT NULL, acao TEXT NOT NULL, valor_corrigido TEXT, justificativa TEXT NOT NULL,
+              reviewed_at TEXT NOT NULL, expires REAL NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -173,6 +187,15 @@ class Store:
                 (now, now),
             )
             db.execute("DELETE FROM documents WHERE expires<=?", (now,))
+            for table in ["consents", "document_files", "extractions", "extraction_fields"]:
+                db.execute(
+                    f"DELETE FROM {table} WHERE expires<=? OR document_id NOT IN (SELECT id FROM documents)",
+                    (now,),
+                )
+            db.execute(
+                "DELETE FROM field_reviews WHERE expires<=? OR field_id NOT IN (SELECT id FROM extraction_fields)",
+                (now,),
+            )
             db.execute(
                 "DELETE FROM proposals WHERE expires<=? OR CAST(json_extract(body,'$.versao_fila') AS INTEGER) IN (SELECT version FROM queues WHERE expires<=?)",
                 (now, now),
@@ -470,7 +493,8 @@ class Store:
                     )
         return version
 
-    def register_document(self, body, actor):
+    def register_document(self, body, actor, file=None, term_version=None):
+        """`file=(bytes, mime)` and `term_version` come from the upload route (spec 001)."""
         self.purge_expired()
         _, queue = self.queue()
         row = next((r for r in queue if r["solicitacao_id"] == body["solicitacao_id"]), None)
@@ -487,10 +511,17 @@ class Store:
                 ).fetchone()
                 if request is None:
                     raise ValueError("Pedido inexistente, de outra solicitacao ou ja respondido")
+            expires = self.clock() + TTL
             db.execute(
                 "INSERT INTO documents VALUES (?,?,?,?,?,?)",
-                (did, body["solicitacao_id"], json.dumps(body), actor, self.instant(), self.clock() + TTL),
+                (did, body["solicitacao_id"], json.dumps(body), actor, self.instant(), expires),
             )
+            if file is not None:
+                db.execute("INSERT INTO document_files VALUES (?,?,?,?)", (did, file[1], file[0], expires))
+                db.execute(
+                    "INSERT INTO consents(document_id,termo_versao,actor,accepted_at,expires) VALUES (?,?,?,?,?)",
+                    (did, term_version, actor, self.instant(), expires),
+                )
             self._event(
                 db,
                 body["solicitacao_id"],
@@ -513,6 +544,97 @@ class Store:
                     f"Exame pedido recebido: {request['exame']}.",
                 )
         return did
+
+    def document_file(self, did):
+        with self.db() as db:
+            row = db.execute(
+                "SELECT conteudo,mime FROM document_files WHERE document_id=? AND expires>?",
+                (did, self.clock()),
+            ).fetchone()
+        return (bytes(row["conteudo"]), row["mime"]) if row else None
+
+    def save_extraction(self, did, status, warnings, fields):
+        """Replace the extraction of a document; the extracted value is never edited afterwards."""
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            doc = db.execute("SELECT expires FROM documents WHERE id=?", (did,)).fetchone()
+            if doc is None:
+                raise KeyError(did)
+            old = [r[0] for r in db.execute("SELECT id FROM extraction_fields WHERE document_id=?", (did,))]
+            db.executemany("DELETE FROM field_reviews WHERE field_id=?", [(i,) for i in old])
+            db.execute("DELETE FROM extraction_fields WHERE document_id=?", (did,))
+            db.execute(
+                "INSERT OR REPLACE INTO extractions VALUES (?,?,?,?,?)",
+                (did, status, json.dumps(warnings), self.instant(), doc["expires"]),
+            )
+            for name, item in fields.items():
+                db.execute(
+                    "INSERT INTO extraction_fields(document_id,campo,valor_extraido,situacao,confianca,requer_revisao,"
+                    "evidencias,expires) VALUES (?,?,?,?,?,?,?,?)",
+                    (
+                        did,
+                        name,
+                        json.dumps(item["valor_extraido"], ensure_ascii=False),
+                        item["situacao"],
+                        item["confianca"],
+                        int(item["requer_revisao"]),
+                        json.dumps(item["evidencias"], ensure_ascii=False),
+                        doc["expires"],
+                    ),
+                )
+
+    def extraction(self, did):
+        self.purge_expired()
+        with self.db() as db:
+            head = db.execute("SELECT * FROM extractions WHERE document_id=?", (did,)).fetchone()
+            if head is None:
+                return None
+            fields = {}
+            for row in db.execute("SELECT * FROM extraction_fields WHERE document_id=? ORDER BY id", (did,)):
+                review = db.execute(
+                    "SELECT * FROM field_reviews WHERE field_id=? ORDER BY id DESC LIMIT 1", (row["id"],)
+                ).fetchone()
+                fields[row["campo"]] = {
+                    "valor_extraido": json.loads(row["valor_extraido"]),
+                    "situacao": row["situacao"],
+                    "confianca": row["confianca"],
+                    "requer_revisao": bool(row["requer_revisao"]),
+                    "evidencias": json.loads(row["evidencias"]),
+                    "revisao": {
+                        "acao": review["acao"],
+                        "valor_corrigido": json.loads(review["valor_corrigido"]),
+                        "justificativa": review["justificativa"],
+                        "revisor": review["reviewer"],
+                        "data_hora": review["reviewed_at"],
+                    }
+                    if review
+                    else None,
+                }
+        return {"situacao": head["situacao"], "avisos": json.loads(head["avisos"]), "campos": fields}
+
+    def review_field(self, did, name, actor, action, corrected, reason):
+        with self.db() as db:
+            row = db.execute(
+                "SELECT * FROM extraction_fields WHERE document_id=? AND campo=? AND expires>?",
+                (did, name, self.clock()),
+            ).fetchone()
+            if row is None:
+                raise KeyError(name)
+            if action == "aprovar" and json.loads(row["valor_extraido"]) is None:
+                raise ValueError("Campo sem valor extraido: corrija com valor ou rejeite")
+            db.execute(
+                "INSERT INTO field_reviews(field_id,reviewer,acao,valor_corrigido,justificativa,reviewed_at,expires)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (
+                    row["id"],
+                    actor,
+                    action,
+                    json.dumps(corrected, ensure_ascii=False),
+                    reason,
+                    self.instant(),
+                    row["expires"],
+                ),
+            )
 
     def _advance_request(self, db, document_id, old, new):
         db.execute(

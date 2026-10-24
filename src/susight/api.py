@@ -3,15 +3,17 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import csv
+import hashlib
 import io
 import os
 import re
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import Field, field_validator, model_validator
 
+from . import extraction
 from .access import Access, Principal
 from .artifacts import purge_artifacts
 from .policy import POLICY_VERSION
@@ -89,6 +91,28 @@ def masked_phone(phone):
     return "*" * (len(digits) - 4) + digits[-4:]
 
 
+class FileUpload(Strict):
+    solicitacao_id: str = Field(min_length=1, max_length=100)
+    tipo_mime: str = Field(max_length=100)
+    conteudo_base64: str = Field(max_length=15_000_000)
+    termo_versao: str = Field(max_length=100)
+    aceite_termo: bool
+    sintetico: Literal[True]
+    pedido_id: str | None = Field(default=None, max_length=100)
+
+
+class FieldReview(Strict):
+    acao: Literal["aprovar", "corrigir", "rejeitar"]
+    valor_corrigido: Any = None
+    justificativa: str = Field(min_length=3, max_length=2000)
+
+    @model_validator(mode="after")
+    def correction_has_value(self):
+        if self.acao == "corrigir" and self.valor_corrigido is None:
+            raise ValueError("Corrigir exige o valor corrigido")
+        return self
+
+
 class LoginInput(Strict):
     identificador: str = Field(min_length=1, max_length=100)
     senha: str = Field(min_length=1, max_length=200)
@@ -98,7 +122,9 @@ class ReferenceVersion(Strict):
     versao_fila: int = Field(ge=1)
 
 
-def create_app(database=None, provider=None, token=None, start_worker=True, access=None, clock=None):
+def create_app(
+    database=None, provider=None, token=None, start_worker=True, access=None, clock=None, extractor=None
+):
     # Refuse an unauthenticated clinical API. Config is evaluated at lifespan time.
     configured_token = token if token is not None else os.environ.get("SUSIGHT_API_TOKEN", "")
     identities = access
@@ -137,6 +163,7 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
 
     app = FastAPI(title="SUSight Backend", version="0.1.0", lifespan=lifespan)
     app.state.store, app.state.tribunal = store, tribunal
+    app.state.extractor = extractor or extraction.GeminiExtractor()
 
     def authenticate(authorization: str | None = Header(default=None)):
         principal = identities.resolve(authorization)
@@ -375,6 +402,97 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
                 for r in rows
             ],
         }
+
+    @app.get("/termos/upload")
+    def upload_term(principal=principal_dependency):
+        return {"versao": extraction.TERM_VERSION, "texto": extraction.TERM_TEXT}
+
+    @app.post("/documentos/arquivo", status_code=201)
+    def upload_file(body: FileUpload, principal=principal_dependency):
+        permit_case(body.solicitacao_id, principal)
+        if not body.aceite_termo or body.termo_versao != extraction.TERM_VERSION:
+            raise HTTPException(
+                422,
+                "Aceite a versao vigente do termo antes de enviar. Sem aceite, o documento pode ser levado a UBS.",
+            )
+        try:
+            data = extraction.decode(body.conteudo_base64)
+            pages = extraction.check_file(data, body.tipo_mime)
+        except extraction.FileRejected as exc:
+            raise HTTPException(422, str(exc)) from None
+        document = {
+            "solicitacao_id": body.solicitacao_id,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "tipo_mime": body.tipo_mime,
+            "paginas": pages,
+            "tamanho_bytes": len(data),
+            "sintetico": True,
+            "pedido_id": body.pedido_id,
+            "origem": "paciente" if principal.papel == "paciente" else "profissional",
+        }
+        try:
+            did = store.register_document(
+                document, principal.id, file=(data, body.tipo_mime), term_version=extraction.TERM_VERSION
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return {"documento_id": did, "situacao": "recebido", "paginas": pages}
+
+    def permitted_document(did, principal):
+        try:
+            doc = store.document(did)
+        except KeyError:
+            raise HTTPException(404, "Documento nao encontrado") from None
+        permit_case(doc["sid"], principal)
+        return doc
+
+    @app.post("/documentos/{did}/extracao")
+    async def run_extraction(did: str, principal=principal_dependency):
+        permitted_document(did, principal)
+        stored = store.document_file(did)
+        if stored is None:
+            raise HTTPException(409, "Documento sem arquivo para leitura")
+        pages = extraction.read_pages(*stored)
+        if pages is None:
+            result = ("revisao_manual", ["leitura_automatica_indisponivel"], extraction.manual("ilegivel"))
+        else:
+            masked = extraction.mask(pages)
+            if not extraction.masked_safely(masked):
+                result = ("revisao_manual", ["mascaramento_nao_assegurado"], extraction.manual("incerto"))
+            else:
+                try:
+                    raw = await app.state.extractor.extract(masked)
+                except extraction.ExtractorUnavailable:
+                    result = ("pendente", ["servico_indisponivel"], {})
+                except Exception:  # noqa: BLE001 -- provider failures must never become simulated data
+                    result = ("pendente", ["leitura_falhou"], {})
+                else:
+                    fields = extraction.normalize(raw, masked)
+                    warnings = (
+                        ["revisao_necessaria"] if any(f["requer_revisao"] for f in fields.values()) else []
+                    )
+                    result = ("extraido", warnings, fields)
+        store.save_extraction(did, *result)
+        return {"documento_id": did, "situacao": result[0], "avisos": result[1]}
+
+    @app.get("/documentos/{did}/extracao")
+    def get_extraction(did: str, principal=principal_dependency):
+        permitted_document(did, principal)
+        return store.extraction(did) or {"situacao": "nao_iniciada", "avisos": [], "campos": {}}
+
+    @app.post("/documentos/{did}/campos/{campo}/revisao")
+    def review_field(did: str, campo: str, body: FieldReview, principal=principal_dependency):
+        professional(principal)
+        permitted_document(did, principal)
+        if campo not in extraction.FIELDS:
+            raise HTTPException(404, "Campo nao encontrado")
+        try:
+            store.review_field(did, campo, principal.id, body.acao, body.valor_corrigido, body.justificativa)
+        except KeyError:
+            raise HTTPException(404, "Extracao nao encontrada") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"documento_id": did, "campo": campo, "acao": body.acao}
 
     @app.post("/documentos", status_code=201)
     def register_document(body: DocumentInput, principal=principal_dependency):
