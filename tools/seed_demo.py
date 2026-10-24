@@ -37,7 +37,11 @@ CRITERIA = {"limitacao": 2, "asa": 2, "dor": 6, "comorbidades": 1, "deterioracao
 PROPOSALS = {
     "SOL-1014": (12, ("exame_imagem", "piora", "Raio-X do joelho mostra piora articular."), "contra"),
     "SOL-1016": (14, ("consulta_reavaliacao", "piora", "Consulta registra novas crises de dor."), "a_favor"),
-    "SOL-1010": (8, ("internacao", "atendimento", "Atendimento de urgencia registrado no periodo."), "a_favor"),
+    "SOL-1010": (
+        8,
+        ("internacao", "atendimento", "Atendimento de urgencia registrado no periodo."),
+        "a_favor",
+    ),
 }
 
 
@@ -88,25 +92,36 @@ def seed(database, password):
     store.provision_account("medico-demo", "medico", [p[1] for p in PATIENTS], password)
     store.provision_account("admin-demo", "admin", [], password)
 
-    version, queue = store.queue()
+    version, _ = store.queue()
     created = []
     for index, (sid, (target, (kind, result, excerpt), _)) in enumerate(PROPOSALS.items(), 1):
         doc = DocumentInput(
-            solicitacao_id=sid, sha256=f"{index:064x}", tipo_mime="application/pdf",
-            paginas=1, tamanho_bytes=1000, sintetico=True,
+            solicitacao_id=sid,
+            sha256=f"{index:064x}",
+            tipo_mime="application/pdf",
+            paginas=1,
+            tamanho_bytes=1000,
+            sintetico=True,
         )
         did = store.register_document(doc.model_dump(), "seed-demo")
         evidence_id = f"EVT-{index}"
         registration = EvidenceRegistration(
             evidencia={"evidencia_id": evidence_id, "tipo": kind, "resultado": result, "data": "2026-10-20"},
-            documento_id=did, pagina=1, trecho=excerpt, campo="comorbidades",
-            valor="Condicao explicitamente documentada", confianca="alta",
+            documento_id=did,
+            pagina=1,
+            trecho=excerpt,
+            campo="comorbidades",
+            valor="Condicao explicitamente documentada",
+            confianca="alta",
         )
         eid = store.register_evidence(registration.model_dump(), "seed-demo")
         store.review_evidence(eid, "aprovar", "medico-demo", "Conferido com documento sintetico")
         body = ProposalInput(
-            solicitacao_id=sid, posicao_proposta=target, versao_fila=version,
-            ordenacao_incerta=True, evidencias=[store.approved_payload(eid, sid)],
+            solicitacao_id=sid,
+            posicao_proposta=target,
+            versao_fila=version,
+            ordenacao_incerta=True,
+            evidencias=[store.approved_payload(eid, sid)],
         ).model_dump()
         created.append((store.create(body, "medico-demo"), sid))
 
