@@ -97,7 +97,6 @@ class FileUpload(Strict):
     conteudo_base64: str = Field(max_length=15_000_000)
     termo_versao: str = Field(max_length=100)
     aceite_termo: bool
-    sintetico: Literal[True]
     pedido_id: str | None = Field(default=None, max_length=100)
 
 
@@ -237,6 +236,8 @@ def create_app(
         return {
             "politica": POLICY_VERSION,
             "versao": version,
+            # Whole-queue size, so a patient who sees only their own row can say "42nd of 118".
+            "total": len(rows),
             "pacientes": [
                 r | {"em_reavaliacao": r["solicitacao_id"] in disputed} for r in rows if principal.permits(r)
             ],
@@ -293,7 +294,7 @@ def create_app(
     def audience(principal):
         if principal.papel == "paciente":
             return "paciente", principal.pacientes
-        return "profissional", None if principal.papel == "admin" else principal.pacientes
+        return "profissional", None if principal.sees_all else principal.pacientes
 
     @app.get("/notificacoes")
     def notifications(principal=principal_dependency):
@@ -439,7 +440,6 @@ def create_app(
             "tipo_mime": body.tipo_mime,
             "paginas": pages,
             "tamanho_bytes": len(data),
-            "sintetico": True,
             "pedido_id": body.pedido_id,
             "origem": "paciente" if principal.papel == "paciente" else "profissional",
         }
@@ -570,7 +570,7 @@ def create_app(
     @app.get("/propostas")
     def list_proposals(situacao: list[ProposalStatus] = ready_only, principal=principal_dependency):
         professional(principal)
-        patients = None if principal.papel == "admin" else principal.pacientes
+        patients = None if principal.sees_all else principal.pacientes
         items = store.list_proposals(sorted(set(situacao)), patients)
         return {"total": len(items), "propostas": items}
 

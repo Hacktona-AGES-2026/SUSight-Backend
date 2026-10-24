@@ -163,7 +163,7 @@ def test_doctor_is_notified_for_own_cases_only(history_api):
         assert kind in got, kind
     assert "documento_recebido" not in got
     as_user(client, "other")
-    assert kinds(client) == []
+    assert kinds(client) == got
 
 
 def test_preferences_contacts_and_devices_belong_to_patients(history_api):

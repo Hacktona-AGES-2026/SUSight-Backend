@@ -6,7 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from susight.policy import POLICY_VERSION
 
+# evidencias argues to move the patient up, contestacao argues against, equidade is impartial; the judge
+# (juiz) reads the three and gives the final opinion.
 AGENTS = ("evidencias", "contestacao", "equidade")
+JUDGE = "juiz"
 
 
 class Strict(BaseModel):
@@ -29,6 +32,7 @@ class QueuePatient(Strict):
     criterios: (
         dict[Literal["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"], float] | None
     ) = None
+    porte: Literal["pequeno", "medio", "grande", "especial"] | None = None
     swalis: Literal["A1", "A2", "B", "C", "D"] | None = None
     prioridade_regulacao: str | None = Field(default=None, max_length=20)
     # Read-only flag served by GET /fila (spec 008); accepted on import but never stored.
@@ -96,7 +100,7 @@ class ProposalInput(Strict):
 
 
 class Vote(Strict):
-    agente: Literal["evidencias", "contestacao", "equidade"]
+    agente: Literal["evidencias", "contestacao", "equidade", "juiz"]
     veredito: Literal["a_favor", "contra", "ajustar"]
     posicao_sugerida: int | None = Field(default=None, ge=1)
     justificativa: str = Field(min_length=10, max_length=2000)
@@ -118,7 +122,6 @@ class DocumentInput(Strict):
     tipo_mime: Literal["application/pdf", "image/jpeg", "image/png"]
     paginas: int = Field(ge=1, le=10)
     tamanho_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
-    sintetico: Literal[True]
     pedido_id: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
@@ -139,6 +142,9 @@ class EvidenceRegistration(Strict):
     pagina: int = Field(ge=1, le=10)
     trecho: str = Field(min_length=1, max_length=2000)
     campo: Literal[
+        "cid",
+        "deterioracao",
+        "porte",
         "limitacao_funcional",
         "asa",
         "dor",

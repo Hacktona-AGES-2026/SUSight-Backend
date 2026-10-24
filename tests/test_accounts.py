@@ -40,7 +40,7 @@ def test_valid_login_for_patient_and_doctor_returns_a_working_session(history_ap
     use(client, response.json()["token"])
     assert [r["solicitacao_id"] for r in client.get("/fila").json()["pacientes"]] == ["20"]
     session(client, "medico.demo")
-    assert [r["solicitacao_id"] for r in client.get("/fila").json()["pacientes"]] == ["20"]
+    assert len(client.get("/fila").json()["pacientes"]) == 20
 
 
 def test_invalid_credentials_do_not_reveal_which_field_is_wrong(history_api):
@@ -113,10 +113,11 @@ def test_session_scope_limits_patients_and_professionals(history_api):
     assert client.get("/solicitacoes/1/historico").status_code == 404
     assert client.get("/solicitacoes/20/historico").status_code == 200
     session(client, "medico.outro")
-    assert client.get("/solicitacoes/20/historico").status_code == 404
+    assert client.get("/solicitacoes/20/historico").status_code == 200
+    # Another doctor reaches the case (shared queue); the evidence was already reviewed, hence the conflict.
     assert (
         client.post("/evidencias/E1/revisao", json={"acao": "rejeitar", "justificativa": "Teste"}).status_code
-        == 404
+        == 409
     )
 
 
@@ -158,3 +159,11 @@ def test_command_line_creates_account_with_password_only_in_a_private_file(tmp_p
         accounts.create(database, "PAC7", "paciente", ["PAC7"], tmp_path / "outro.senha")
     with pytest.raises((ValueError, FileExistsError)):
         accounts.create(database, "PAC8", "paciente", ["PAC8"], secret)
+
+
+def test_queue_reports_the_full_size_even_when_the_user_sees_one_row(history_api):
+    client, _ = history_api
+    client.headers["Authorization"] = "Bearer patient"
+    body = client.get("/fila").json()
+    assert [r["solicitacao_id"] for r in body["pacientes"]] == ["20"]
+    assert body["total"] == 20

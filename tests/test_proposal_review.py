@@ -35,7 +35,7 @@ def test_list_shows_only_permitted_cases_oldest_first_with_total(history_api):
     as_user(client, "admin")
     assert listing(client).json()["total"] == 2
     as_user(client, "other")
-    assert listing(client).json() == {"total": 0, "propostas": []}
+    assert listing(client).json()["total"] == 2
 
 
 def test_list_defaults_to_ready_filters_by_status_and_refuses_unknown(history_api):
@@ -72,7 +72,7 @@ def test_patient_is_forbidden_and_other_doctor_does_not_see_the_proposal(history
     assert listing(client).status_code == 403
     assert detail(client, pid).status_code == 403
     as_user(client, "other")
-    assert detail(client, pid).status_code == 404
+    assert detail(client, pid).status_code == 200
     as_user(client, "doctor")
     assert detail(client, "inexistente").status_code == 404
 
@@ -93,7 +93,12 @@ def test_detail_has_approved_evidence_full_opinion_and_history(history_api):
     assert evidence["trecho"] == "Resultado explicitamente descrito no documento sintetico."
     assert evidence["pagina"] == 1 and evidence["revisor"] == "doctor" and evidence["revisado_em"]
     opinion = body["parecer"]
-    assert {m["agente"] for m in opinion["manifestacoes"]} == {"evidencias", "contestacao", "equidade"}
+    assert {m["agente"] for m in opinion["manifestacoes"]} == {
+        "evidencias",
+        "contestacao",
+        "equidade",
+        "juiz",
+    }
     assert opinion["recomendacao"] == "aprovar" and "travas" in opinion and opinion["posicao"]
     assert [e["tipo"] for e in body["historico"]][-1] == "entrada_na_fila"
     assert body["decisao"] is None

@@ -29,6 +29,9 @@ MAX_BYTES = 10 * 1024 * 1024
 MAX_PAGES = 10
 MAGIC = {"application/pdf": b"%PDF-", "image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
 FIELDS = (
+    "cid",
+    "deterioracao",
+    "porte",
     "limitacao_funcional",
     "asa",
     "dor",
@@ -145,6 +148,9 @@ def _iso_date(value):
 
 
 DOMAINS = {
+    "cid": lambda v: isinstance(v, str) and re.fullmatch(r"[A-Z][0-9]{2}(\.?[0-9A-Z]{1,2})?", v) is not None,
+    "deterioracao": lambda v: v in {"nenhuma", "leve", "moderada", "grave"},
+    "porte": lambda v: v in {"pequeno", "medio", "grande", "especial"},
     "asa": lambda v: isinstance(v, str) and re.fullmatch(r"(I|II|III|IV|V|VI)E?", v) is not None,
     "limitacao_funcional": lambda v: v in {"nenhuma", "leve", "moderada", "grave"},
     "tipo_documento": lambda v: (
@@ -244,8 +250,10 @@ def normalize(raw, pages):
 
 
 PROMPT = (
-    "Extraia de um documento médico sintético, já mascarado, os campos: limitacao_funcional, asa, dor, "
-    "socioeconomico, comorbidades, tipo_documento, data_documento. Para cada campo devolva valor, situacao "
+    "Extraia de um documento médico já mascarado, os campos: cid (CID-10 do diagnóstico, ex.: K40.9), "
+    "deterioracao (piora clínica durante a espera: nenhuma, leve, moderada ou grave), porte (porte do "
+    "procedimento: pequeno, medio, grande ou especial), limitacao_funcional, asa, dor, socioeconomico, "
+    "comorbidades, tipo_documento, data_documento. Para cada campo devolva valor, situacao "
     "(presente, ausente, incerto, ilegivel ou conflitante), confianca (alta, media ou baixa) e evidencias "
     "(lista de trecho literal e pagina). Não invente valores nem infira ASA; campo não encontrado tem valor null. "
     "Datas em AAAA-MM-DD; dor com intensidade, escala e descricao como registradas; comorbidades e "

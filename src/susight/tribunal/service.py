@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from susight.dataset.core import normalize
 
 from .guards import guard
-from .models import AGENTS, Vote
+from .models import AGENTS, JUDGE, Vote
 from .store import EvidenceUnavailable
 
 
@@ -25,6 +25,9 @@ def masked_context(proposal, queue, guarded):
         return {
             "paciente": pseudonym(r["solicitacao_id"]),
             "cid": r["cid"],
+            "porte": r.get("porte"),
+            # Scoring criteria the position came from, so the agents weigh the same factors as the ranking.
+            "criterios": r.get("criterios"),
             "pontuacao": r["pontuacao"],
             "posicao": r["posicao"],
         }
@@ -35,16 +38,23 @@ def masked_context(proposal, queue, guarded):
         "afetados": [mask(r) for r in queue if lo <= r["posicao"] <= hi and r["solicitacao_id"] != sid],
         "evidencias": [{**e, "evidencia_id": pseudonym(e["evidencia_id"])} for e in proposal["evidencias"]],
         "travas": guarded["travas"],
+        # Reason the doctor gave when sending the proposal back; empty on the first round.
+        "devolutiva_medico": proposal.get("devolutiva", ""),
         "ordenacao_incerta": proposal["ordenacao_incerta"],
         "evidencias_conflitantes": proposal["evidencias_conflitantes"],
     }
 
 
-def consolidate_votes(votes):
-    counts = Counter(v.veredito for v in votes)
-    majority = counts.most_common(1)[0]
-    verdict = majority[0] if majority[1] >= 2 else "ajustar"
-    dissent = [v.model_dump() for v in votes if majority[1] == 1 or v.veredito != verdict]
+def consolidate_votes(votes, judge=None):
+    """The judge's ruling is the opinion; without one (legacy), the majority decides."""
+    if judge is not None:
+        verdict, dissent = judge.veredito, [v.model_dump() for v in votes if v.veredito != judge.veredito]
+        votes = [*votes, judge]
+    else:
+        counts = Counter(v.veredito for v in votes)
+        majority = counts.most_common(1)[0]
+        verdict = majority[0] if majority[1] >= 2 else "ajustar"
+        dissent = [v.model_dump() for v in votes if majority[1] == 1 or v.veredito != verdict]
     return {
         "recomendacao": {"a_favor": "aprovar", "contra": "negar", "ajustar": "ajustar"}[verdict],
         "divergencias": dissent,
@@ -102,8 +112,8 @@ class Tribunal:
                     in {"biopsia", "exame_imagem", "pronto_socorro", "internacao", "consulta_reavaliacao"}
                     for e in body["evidencias"]
                 )
-                normalized = []
-                for role, raw in zip(AGENTS, votes):
+
+                def check(role, raw):
                     vote = Vote.model_validate(raw)
                     if vote.agente != role or not set(vote.evidencias_citadas).issubset(known):
                         raise ValueError("Agente ou referencia de evidencia invalida")
@@ -117,7 +127,7 @@ class Tribunal:
                         raise ValueError("Linguagem nao permitida")
                     if not proof:
                         vote.sem_comprovacao = True
-                        if role == "evidencias" and vote.veredito == "a_favor":
+                        if role in {"evidencias", JUDGE} and vote.veredito == "a_favor":
                             vote.veredito = "contra"
                             vote.justificativa = (
                                 "Nao ha exame ou evento clinico documentado que comprove a mudanca."
@@ -125,12 +135,27 @@ class Tribunal:
                     if vote.veredito in {"a_favor", "ajustar"} and not vote.evidencias_citadas:
                         raise ValueError("Voto favoravel ou ajuste sem referencia de evidencia")
                     vote.evidencias_citadas = [original_ids[e] for e in vote.evidencias_citadas]
-                    normalized.append(vote)
-                opinion = consolidate_votes(normalized)
+                    return vote
+
+                normalized = [check(role, raw) for role, raw in zip(AGENTS, votes)]
+                # The judge reads the three arguments and decides; the doctor still has the last word.
+                heard = [
+                    {
+                        "agente": v.agente,
+                        "veredito": v.veredito,
+                        "posicao_sugerida": v.posicao_sugerida,
+                        "justificativa": v.justificativa,
+                    }
+                    for v in normalized
+                ]
+                ruling = await asyncio.wait_for(
+                    self.provider.analyze(JUDGE, context | {"votos": heard}), timeout=self.timeout
+                )
+                judge = check(JUDGE, ruling)
+                opinion = consolidate_votes(normalized, judge)
                 target = checked["posicao"]
                 if opinion["recomendacao"] == "ajustar":
-                    suggestions = [v.posicao_sugerida for v in normalized if v.veredito == "ajustar"]
-                    target = max(suggestions) if suggestions else target
+                    target = judge.posicao_sugerida or target
                 result = guard(queue, body["solicitacao_id"], target)
                 if not result["liberada"]:
                     opinion["recomendacao"] = "negar"

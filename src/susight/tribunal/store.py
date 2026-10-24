@@ -81,6 +81,10 @@ EVENT_NOTICES = {
 OPTIONAL_NOTICES = ("documento_recebido", "analise_concluida", "prioridade_validada")
 
 
+# A rejected proposal returns to the tribunal with the doctor's reason, up to this many rounds.
+MAX_ROUNDS = 3
+
+
 class Store:
     def __init__(self, path, clock=time.time):
         self.path, self.clock = str(path), clock
@@ -975,6 +979,14 @@ class Store:
                 (pid, actor, action, reason, self.instant(), p["expires"]),
             )
             db.execute("UPDATE proposals SET status=? WHERE id=?", (action, pid))
+            round_ = body.get("rodada", 1)
+            if action == "rejeitar" and round_ < MAX_ROUNDS:
+                # The doctor's reason goes back to the tribunal, which analyzes the case again.
+                again = body | {"devolutiva": reason, "rodada": round_ + 1}
+                db.execute(
+                    "INSERT INTO proposals(id,body,status,created_at,expires) VALUES (?,?,?,?,?)",
+                    (uuid4().hex, json.dumps(again), "aguardando_tribunal", self.instant(), p["expires"]),
+                )
             return version + 1 if action == "aprovar" else version
 
     def cancel(self, pid, actor, reason):

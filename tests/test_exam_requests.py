@@ -24,7 +24,6 @@ def linked_document(client, pedido_id, sid="20"):
             "tipo_mime": "application/pdf",
             "paginas": 1,
             "tamanho_bytes": 100,
-            "sintetico": True,
             "pedido_id": pedido_id,
         },
     )
@@ -75,9 +74,10 @@ def test_requested_exam_goes_received_then_in_analysis_then_answered(history_api
 def test_requests_are_visible_only_to_the_patient_and_authorized_professional(history_api):
     client, _ = history_api
     ask(client)
-    for name in ["other_patient", "other"]:
-        as_user(client, name)
-        assert requests(client).status_code == 404
+    as_user(client, "other_patient")
+    assert requests(client).status_code == 404
+    as_user(client, "other")
+    assert requests(client).status_code == 200
     as_user(client, "doctor")
     assert requests(client).json()["pendentes"] == 2
 
