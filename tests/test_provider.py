@@ -49,7 +49,9 @@ async def test_gemini_sdk_structured_contract_without_network(monkeypatch):
     assert vote.agente == "evidencias"
     config = seen[0]["generationConfig"]
     assert config["responseMimeType"] == "application/json"
-    assert config.get("responseSchema") or config.get("responseJsonSchema")
+    # The vote's keys are described in the prompt: the SDK refuses the closed-object schema of the model.
+    assert "responseSchema" not in config and "responseJsonSchema" not in config
+    assert "veredito" in seen[0]["contents"][0]["parts"][0]["text"]
 
 
 async def test_missing_provider_configuration_never_simulates(monkeypatch):

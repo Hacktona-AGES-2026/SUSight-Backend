@@ -360,3 +360,15 @@ def test_queue_keeps_the_patient_name_procedure_and_city_for_the_doctor(tmp_path
         "Porto Alegre",
     )
     assert store.queue()[1][1]["nome"] is None
+
+
+def test_vote_parsing_ignores_keys_the_model_invents_and_fixes_the_agent_name():
+    from susight.tribunal.provider import parse_vote
+
+    raw = (
+        '{"agente": "Advogado", "veredito": "contra", "posicao_defendida": 794, "parecer": "x",'
+        ' "justificativa": "Sem exame que comprove a mudanca.", "evidencias_citadas": ["E1"]}'
+    )
+    got = parse_vote("contestacao", raw)
+    assert (got.agente, got.veredito, got.evidencias_citadas) == ("contestacao", "contra", ["E1"])
+    assert got.sem_comprovacao is False and got.posicao_sugerida is None
