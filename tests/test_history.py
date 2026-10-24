@@ -1,48 +1,9 @@
-import hashlib
 import json
 
-import pytest
-from fastapi.testclient import TestClient
 from test_access_retention import document, evidence
-from test_tribunal import FakeProvider, proposal_reference, queue
+from test_tribunal import proposal_reference
 
-from susight.access import Access
-from susight.api import create_app
 from susight.artifacts import TTL
-
-
-@pytest.fixture
-def history_api(tmp_path):
-    clock = [1800000000.0]
-    principals = [
-        {
-            "id": name,
-            "papel": role,
-            "pacientes": scope,
-            "token_sha256": hashlib.sha256(name.encode()).hexdigest(),
-        }
-        for name, role, scope in [
-            ("admin", "admin", []),
-            ("doctor", "medico", ["PAC20"]),
-            ("patient", "paciente", ["PAC20"]),
-            ("other", "medico", ["PAC1"]),
-            ("other_patient", "paciente", ["PAC1"]),
-        ]
-    ]
-    app = create_app(
-        tmp_path / "db.sqlite",
-        FakeProvider(),
-        access=Access(entries=principals),
-        clock=lambda: clock[0],
-        start_worker=False,
-    )
-    with TestClient(app) as client:
-        client.headers["Authorization"] = "Bearer admin"
-        rows = queue()
-        for row in rows:
-            row["paciente_id"] = "PAC" + row["solicitacao_id"]
-        assert client.put("/fila", json={"versao_esperada": 0, "pacientes": rows}).status_code == 200
-        yield client, clock
 
 
 def as_user(client, name):
@@ -75,11 +36,13 @@ def current(client):
     return client.get("/fila").json()["versao"]
 
 
-def decide(client, pid, action, reason=""):
-    response = client.post(
-        f"/propostas/{pid}/decisao", json={"medico": "Dra Teste", "acao": action, "motivo": reason}
-    )
+def decide(client, pid, action, reason="", exams=None):
+    body = {"medico": "Dra Teste", "acao": action, "motivo": reason}
+    if action == "pedir_informacoes":
+        body["exames"] = exams or [{"exame": "Exame de imagem recente"}]
+    response = client.post(f"/propostas/{pid}/decisao", json=body)
     assert response.status_code == 200, response.text
+    return response
 
 
 def kinds(client, sid="20"):
