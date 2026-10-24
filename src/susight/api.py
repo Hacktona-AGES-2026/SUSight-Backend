@@ -10,7 +10,7 @@ import re
 from contextlib import asynccontextmanager
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from pydantic import Field, field_validator, model_validator
 
 from . import extraction
@@ -111,6 +111,19 @@ class FieldReview(Strict):
         if self.acao == "corrigir" and self.valor_corrigido is None:
             raise ValueError("Corrigir exige o valor corrigido")
         return self
+
+
+ProposalStatus = Literal[
+    "aguardando_tribunal",
+    "processando",
+    "tribunal_indisponivel",
+    "pronta_para_medico",
+    "aprovar",
+    "rejeitar",
+    "pedir_informacoes",
+    "cancelada",
+    "desatualizada",
+]
 
 
 class LoginInput(Strict):
@@ -551,6 +564,25 @@ def create_app(
             raise HTTPException(404, "Evidencia nao encontrada") from None
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
+
+    ready_only = Query(default=["pronta_para_medico"])
+
+    @app.get("/propostas")
+    def list_proposals(situacao: list[ProposalStatus] = ready_only, principal=principal_dependency):
+        professional(principal)
+        patients = None if principal.papel == "admin" else principal.pacientes
+        items = store.list_proposals(sorted(set(situacao)), patients)
+        return {"total": len(items), "propostas": items}
+
+    @app.get("/propostas/{pid}")
+    def proposal_detail(pid: str, principal=principal_dependency):
+        professional(principal)
+        try:
+            body = store.proposal_detail(pid)
+        except KeyError:
+            raise HTTPException(404, "Proposta nao encontrada") from None
+        permit_case(body["solicitacao_id"], principal)
+        return body
 
     @app.post("/propostas", status_code=201)
     def create_proposal(body: EvidenceReferences, principal=principal_dependency):

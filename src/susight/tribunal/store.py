@@ -765,6 +765,97 @@ class Store:
         result["opinion"] = json.loads(result["opinion"]) if result["opinion"] else None
         return result
 
+    @staticmethod
+    def _summary(proposal, row):
+        body, opinion = json.loads(proposal["body"]), proposal["opinion"]
+        return {
+            "proposta_id": proposal["id"],
+            "solicitacao_id": body["solicitacao_id"],
+            "situacao": proposal["status"],
+            "posicao_atual": row.get("posicao"),
+            "posicao_proposta": body["posicao_proposta"],
+            "recomendacao": json.loads(opinion)["recomendacao"] if opinion else None,
+            "ordenacao_incerta": body["ordenacao_incerta"],
+            "evidencias_conflitantes": body["evidencias_conflitantes"],
+            "criada_em": proposal["created_at"],
+        }
+
+    def list_proposals(self, statuses, patients):
+        """Read-only listing for review (spec 009); `patients=None` means every case (admin)."""
+        _, queue = self.queue()
+        rows = {r["solicitacao_id"]: r for r in queue}
+        marks = ",".join("?" * len(statuses))
+        listed = []
+        with self.db() as db:
+            found = db.execute(
+                f"SELECT * FROM proposals WHERE expires>? AND status IN ({marks}) ORDER BY created_at, rowid",
+                (self.clock(), *statuses),
+            ).fetchall()
+            for proposal in found:
+                sid = json.loads(proposal["body"])["solicitacao_id"]
+                row = rows.get(sid, {})
+                patient = row.get("paciente_id") or self._patient_of(db, sid)
+                if patients is None or patient in patients:
+                    listed.append(self._summary(proposal, row))
+        return listed
+
+    def proposal_detail(self, pid):
+        """Everything already stored about one live proposal (spec 009); KeyError when absent or expired."""
+        self.purge_expired()
+        _, queue = self.queue()
+        with self.db() as db:
+            proposal = db.execute(
+                "SELECT * FROM proposals WHERE id=? AND expires>?", (pid, self.clock())
+            ).fetchone()
+            if proposal is None:
+                raise KeyError(pid)
+            body = json.loads(proposal["body"])
+            decision = db.execute(
+                "SELECT * FROM decisions WHERE proposal_id=? ORDER BY id DESC LIMIT 1", (pid,)
+            ).fetchone()
+        sid = body["solicitacao_id"]
+        row = next((r for r in queue if r["solicitacao_id"] == sid), {})
+        evidence = []
+        for cited in body["evidencias"]:
+            try:
+                stored = self.evidence(cited["evidencia_id"])
+            except KeyError:
+                continue
+            evidence.append(
+                cited
+                | {
+                    "trecho": stored["body"]["trecho"],
+                    "pagina": stored["body"]["pagina"],
+                    "revisor": stored["reviewer"],
+                    "revisado_em": stored["reviewed_at"],
+                }
+            )
+        return self._summary(proposal, row) | {
+            "swalis": row.get("swalis"),
+            "prioridade_regulacao": row.get("prioridade_regulacao"),
+            "criterios": row.get("criterios"),
+            "evidencias": evidence,
+            "parecer": json.loads(proposal["opinion"]) if proposal["opinion"] else None,
+            "historico": [
+                {
+                    "tipo": e["tipo"],
+                    "texto": e["texto"],
+                    "responsavel": e["actor"],
+                    "motivo": e["motivo"],
+                    "data_hora": e["created_at"],
+                }
+                for e in self.history(sid)
+            ],
+            "decisao": {
+                "acao": decision["action"],
+                "motivo": decision["reason"] or None,
+                "responsavel": decision["actor"],
+                "data_hora": decision["created_at"],
+            }
+            if decision
+            else None,
+        }
+
     def live_evidence(self, body):
         self.purge_expired()
         with self.db() as db:

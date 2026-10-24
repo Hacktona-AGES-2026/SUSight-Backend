@@ -25,6 +25,12 @@ class QueuePatient(Strict):
     sem_urgencia_verificador: bool = False
     posicao: int = Field(ge=1)
     justificativa: str = Field(default="", max_length=2000)
+    # Optional scoring output from fila.json, shown in the proposal detail (spec 009).
+    criterios: (
+        dict[Literal["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"], float] | None
+    ) = None
+    swalis: Literal["A1", "A2", "B", "C", "D"] | None = None
+    prioridade_regulacao: str | None = Field(default=None, max_length=20)
     # Read-only flag served by GET /fila (spec 008); accepted on import but never stored.
     em_reavaliacao: bool | None = Field(default=None, exclude=True)
 

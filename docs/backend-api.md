@@ -36,6 +36,8 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /evidencias` | Valor proposto, trecho, campo, página, confiança e referência à fonte. |
 | `GET /evidencias/{id}` | Evidência e histórico da revisão permitidos ao caso. |
 | `POST /evidencias/{id}/revisao` | Aprovação/rejeição pelo profissional autorizado, com justificativa. |
+| `GET /propostas?situacao=...` | Propostas dos casos do profissional, da mais antiga para a mais nova; padrão `pronta_para_medico` (spec 009). |
+| `GET /propostas/{id}` | Detalhe para revisão: posições, critérios, SWALIS, evidências aprovadas, parecer, histórico e decisão (spec 009). |
 | `POST /propostas` | Cria proposta usando somente IDs de evidências aprovadas no servidor. |
 | `POST /propostas/{id}/tribunal` | Análise ou reprocessamento de proposta válida. |
 | `GET /propostas/{id}/parecer` | Parecer interno para profissional do caso. |
