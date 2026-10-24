@@ -43,6 +43,9 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
 | `GET /solicitacoes/{id}/historico` | Trilha de eventos da solicitação, do mais recente ao mais antigo (spec 004). |
 | `GET /solicitacoes/{id}/exames-pedidos` | Exames pedidos pelo médico, com situação e contagem de pendentes (spec 006). |
+| `POST /solicitacoes/{id}/contestacao` | Contesta a posição com motivo; a solicitação fica em reavaliação (spec 008). |
+| `POST /solicitacoes/{id}/contestacao/conclusao` | Conclui a reavaliação mantendo a posição, com justificativa (spec 008). |
+| `GET /fila/exportacao.csv` | CSV `solicitacao_id,posicao,justificativa` da fila vigente; registra o export (spec 008). |
 
 `pedir_informacoes` exige `exames` (até 10, cada um com `exame` e `explicacao` opcional);
 as demais decisões recusam o campo. `POST /documentos` aceita `pedido_id` para ligar o
