@@ -32,6 +32,7 @@ PATIENTS = [
     (f"SOL-{1000 + n}", f"PAC-{1000 + n}", CIDS[n % 4], 460 - n * 17, PRIORITIES[n - 1]) for n in range(1, 21)
 ]
 CRITERIA = {"limitacao": 2, "asa": 2, "dor": 6, "comorbidades": 1, "deterioracao": 2, "distancia": 25}
+PORTES = ["medio", "pequeno", "medio", "grande"]  # same cycle as CIDS
 
 # solicitacao -> (posicao proposta, evidencia (tipo, resultado, trecho), veredito do agente de contestacao)
 PROPOSALS = {
@@ -60,8 +61,8 @@ class DemoProvider:
             "evidencias": "As evidencias aprovadas sustentam a piora e apoiam subir a posicao.",
             "contestacao": "O documento mais recente e antigo e o relato isolado nao comprova a mudanca.",
             "equidade": "A mudanca respeita o limite por reavaliacao e a hierarquia da fila.",
-        }[agent]
             "juiz": "Pesados os tres argumentos, as evidencias aprovadas sustentam o parecer final.",
+        }[agent]
         verdict = "contra" if agent == "contestacao" and context["_demo_contra"] else "a_favor"
         return Vote(
             agente=agent,
@@ -89,6 +90,7 @@ def seed(database, password):
                 "posicao": position,
                 "justificativa": f"Posicao definida pela pontuacao clinica e pela classe de risco ({priority}).",
                 "criterios": CRITERIA,
+                "porte": PORTES[(position - 1) % 4],
                 "swalis": "C",
                 "prioridade_regulacao": priority,
             }

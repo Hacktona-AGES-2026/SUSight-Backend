@@ -32,6 +32,7 @@ class QueuePatient(Strict):
     criterios: (
         dict[Literal["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"], float] | None
     ) = None
+    porte: Literal["pequeno", "medio", "grande", "especial"] | None = None
     swalis: Literal["A1", "A2", "B", "C", "D"] | None = None
     prioridade_regulacao: str | None = Field(default=None, max_length=20)
     # Read-only flag served by GET /fila (spec 008); accepted on import but never stored.
@@ -141,6 +142,9 @@ class EvidenceRegistration(Strict):
     pagina: int = Field(ge=1, le=10)
     trecho: str = Field(min_length=1, max_length=2000)
     campo: Literal[
+        "cid",
+        "deterioracao",
+        "porte",
         "limitacao_funcional",
         "asa",
         "dor",

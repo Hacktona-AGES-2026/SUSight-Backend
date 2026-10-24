@@ -37,6 +37,9 @@ GOOD = {
     "asa": field("III", "Classificação ASA: III"),
     "dor": field({"intensidade": 6, "escala": "EVA 0-10", "descricao": None}, "Dor: 6 na escala EVA 0-10"),
     "limitacao_funcional": field("moderada", "Limitação funcional: moderada"),
+    "cid": field("K40.9", "Diagnóstico (CID-10): K40.9"),
+    "deterioracao": field("moderada", "Piora moderada durante a espera"),
+    "porte": field("medio", "Porte cirúrgico: médio"),
     "comorbidades": field(
         [
             {
@@ -49,6 +52,9 @@ GOOD = {
     ),
 }
 FIELDS = {
+    "cid",
+    "deterioracao",
+    "porte",
     "limitacao_funcional",
     "asa",
     "dor",
@@ -157,7 +163,7 @@ def test_invalid_files_are_rejected_with_guidance_and_nothing_is_stored(history_
     assert count(client, "documents") == 0 and count(client, "document_files") == 0
 
 
-def test_extraction_always_returns_the_seven_fields_and_absent_is_null(history_api):
+def test_extraction_always_returns_the_ten_fields_and_absent_is_null(history_api):
     client, _ = history_api
     _, result = extract(client, FakeExtractor())
     assert result["situacao"] == "extraido"
@@ -197,8 +203,11 @@ def test_clinical_domains_are_enforced_without_silent_conversion(history_api):
     bad["asa"]["valor"] = "VII"
     bad["data_documento"]["valor"] = "03/04"
     bad["tipo_documento"]["valor"] = "receita"
+    bad["cid"]["valor"] = "hernia"
+    bad["porte"]["valor"] = "enorme"
+    bad["deterioracao"]["valor"] = "muito"
     _, result = extract(client, FakeExtractor(bad))
-    for name in ["asa", "data_documento", "tipo_documento"]:
+    for name in ["asa", "data_documento", "tipo_documento", "cid", "porte", "deterioracao"]:
         assert result["campos"][name]["valor_extraido"] is None, name
         assert result["campos"][name]["requer_revisao"] is True
     assert result["campos"]["dor"]["valor_extraido"] == {

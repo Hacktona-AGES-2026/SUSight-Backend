@@ -25,6 +25,9 @@ def masked_context(proposal, queue, guarded):
         return {
             "paciente": pseudonym(r["solicitacao_id"]),
             "cid": r["cid"],
+            "porte": r.get("porte"),
+            # Scoring criteria the position came from, so the agents weigh the same factors as the ranking.
+            "criterios": r.get("criterios"),
             "pontuacao": r["pontuacao"],
             "posicao": r["posicao"],
         }
@@ -35,11 +38,11 @@ def masked_context(proposal, queue, guarded):
         "afetados": [mask(r) for r in queue if lo <= r["posicao"] <= hi and r["solicitacao_id"] != sid],
         "evidencias": [{**e, "evidencia_id": pseudonym(e["evidencia_id"])} for e in proposal["evidencias"]],
         "travas": guarded["travas"],
+        # Reason the doctor gave when sending the proposal back; empty on the first round.
+        "devolutiva_medico": proposal.get("devolutiva", ""),
         "ordenacao_incerta": proposal["ordenacao_incerta"],
         "evidencias_conflitantes": proposal["evidencias_conflitantes"],
     }
-        # Reason the doctor gave when sending the proposal back; empty on the first round.
-        "devolutiva_medico": proposal.get("devolutiva", ""),
 
 
 def consolidate_votes(votes, judge=None):
