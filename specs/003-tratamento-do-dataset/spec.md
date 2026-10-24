@@ -1,9 +1,11 @@
 # Spec: Tratamento do dataset
 
 Issue: Hacktona-AGES-2026/SUSight#5
-Status: aprovada
+Status: em revisão
 
 Aprovação: usuário, em 2026-10-24, nesta conversa.
+
+Complemento de recomendações do MVP incluído por solicitação do usuário; a aprovação acima se refere à versão anterior. Os critérios adicionados aguardam verificação e não são declarados implementados por esta alteração documental.
 
 ## Contexto
 
@@ -75,6 +77,18 @@ Esta feature prepara os dados para a pontuação da fila (spec 002, issue #6). C
 32. As regras aplicadas e os motivos das exclusões ficam registrados em `DECISOES.md`, acompanhados dos identificadores e referências das evidências necessárias para auditar cada decisão. Categorias de cobertura são reconciliáveis com todas as solicitações originais.
 33. A mesma entrada, data de referência e versão de regras produzem os mesmos registros tratados e decisões. Horário de execução pode variar nos metadados sem alterar o resultado substantivo.
 
+### Recomendações adotadas para o MVP
+
+- **Dados e processamento:** usar o dataset sintético fornecido e regras determinísticas com execução no ambiente do projeto. O tratamento não depende de IA nem envia os arquivos a serviço externo. Não importar dados de pacientes reais para a demonstração.
+- **Originais e cópias:** preservar os arquivos originais e seus identificadores; toda decisão de consolidação ou exclusão produz vínculo e motivo auditáveis. Cópias de trabalho e saídas da demonstração expiram em até sete dias da geração, ou antes por solicitação do responsável. Essa regra não apaga a fonte imutável do desafio nem fixtures inteiramente sintéticas versionadas, e não estabelece prazo de guarda para prontuários reais.
+- **Duplicatas:** confirmar mesmo paciente, procedimento, CID normalizado e contexto compatível. Sem comprovação positiva de equivalência, manter o grupo separado com aviso. Não transformar os 22 grupos candidatos do dataset em meta obrigatória de exclusão; diferenças de lateralidade, episódio, indicação ou medidas continuam para revisão.
+- **Ausências:** valores originais ausentes permanecem identificáveis. Para a representação destinada à pontuação do dataset, aplicar a mediana da especialidade já aprovada; ASA, limitação e EVA inteira usam o elemento central superior, distância usa mediana aritmética. Não recorrer à mediana global nem tratar ausência de exame, comorbidade ou relato como ausência de doença ou de piora.
+- **Fronteira documental:** a regra de imputação desta feature não se aplica ao resultado da extração descrita em `specs/001-extracao-de-exames/spec.md` (PR #7). Nessa extração, campo ausente ou sem sustentação continua `null`. Um valor extraído, mesmo de confiança alta, só entra no conjunto de dados aprovados após revisão profissional; evidência, confiança e correção permanecem distinguíveis.
+- **Identidade e eventos:** não reunir pessoas por semelhança de nome nem transferir evidência apenas por paciente compartilhado. Eventos órfãos, paciente divergente e registros futuros continuam separados e reportados, preservando a origem e a referência temporal fixa.
+- **Exclusões e revisão:** falta, ausência de contato, campo incompleto e preparo pendente não são critérios automáticos de exclusão. Desistência e cirurgia realizada precisam de registro inequívoco, vínculo e ausência de contradição. A equipe revisa as exclusões antes de aprovar o entregável, com responsável e data registrados; não alterar uma fila operacional com base nessa preparação.
+- **Cobertura e acesso:** reconciliar todas as solicitações e os eventos originais e apresentar pendências sem ocultá-las na saída. Relatórios com evidências são restritos aos envolvidos autorizados; registros operacionais compartilhados não incluem nomes, CNS, trechos clínicos identificáveis ou credenciais. A avaliação da regra de ouro distingue a condição técnica do verificador de uma conclusão clínica de ausência de urgência.
+- **Aceitação:** usar fixtures sintéticas com gabarito, verificar cada exclusão/consolidação e comparar duas execuções com a mesma entrada. São requisitos a executar e revisar, não prova de que qualquer nova política de acesso, expiração ou aprovação esteja implementada.
+
 ## Critérios de aceite
 
 - [ ] Os arquivos brutos permanecem inalterados, e a versão da entrada e das regras é identificável.
@@ -94,6 +108,9 @@ Esta feature prepara os dados para a pontuação da fila (spec 002, issue #6). C
 - [ ] A saída mantém dados e fontes necessários aos sete critérios da pontuação, sem atribuir pesos ou estimar diagnóstico.
 - [ ] Erro estrutural impede publicar uma versão tratada incompleta como válida e identifica a causa.
 - [ ] Mesmas entradas e regras geram os mesmos resultados substantivos.
+- [ ] A conferência do tráfego da execução confirma que o tratamento ocorre no ambiente do projeto sem envio de dados a serviços externos.
+- [ ] A aprovação do entregável identifica responsável, data e revisão das exclusões; campos documentais não aprovados permanecem fora dos dados aprovados, sem receber imputação disfarçada de extração.
+- [ ] O cenário sintético verifica acesso restrito e expiração das cópias temporárias em até sete dias, preservando os arquivos originais e suas evidências de integridade.
 
 ## Fora do escopo
 
@@ -106,7 +123,7 @@ Esta feature prepara os dados para a pontuação da fila (spec 002, issue #6). C
 
 ## Questões em aberto
 
-Nenhuma decisão de comportamento pendente. O plano deve detalhar os formatos de saída, as regras versionadas de compatibilidade e extração textual e a representação das medianas ordinais, de acordo com os comportamentos acima.
+Nenhuma decisão de escopo do MVP pendente. As regras de ausência, revisão, dados sintéticos e guarda estão definidas acima. O plano detalha formatos de saída e regras versionadas sem autorizar inferência clínica. Conferência das exclusões e dos controles de autorização, expiração e aprovação continua pendência de aceitação.
 
 ## Estado da implementação
 

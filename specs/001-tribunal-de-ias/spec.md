@@ -27,6 +27,19 @@ O tribunal é consultivo. Quem decide é o médico (constituição, princípios 
 
 O valor do limite de elevação por reavaliação vem da spec de pontuação da fila (issue #6). O tribunal usa o valor definido lá.
 
+### Recomendações adotadas para o MVP
+
+- **Demonstração:** usar exclusivamente pacientes, filas e evidências sintéticos. Serviços externos recebem apenas o contexto mínimo necessário, pseudonimizado e sem nome, CNS, município, endereço ou texto livre identificável. Mascaramento não autoriza envio de dados reais nem uso clínico real. O fornecedor e o modelo são decisões do plano, sujeitos à conferência dos termos pelo responsável de Backend.
+- **Integração com extração:** a extração descrita em `specs/001-extracao-de-exames/spec.md` (PR #7) entrega propostas com evidência e confiança. Uma proposta de alta confiança não equivale a dado aprovado. Campos incertos, ilegíveis, conflitantes ou fora do domínio da pontuação exigem revisão profissional; o tribunal não preenche seus valores nem resolve lacunas de leitura por voto.
+- **Comprovação:** cada afirmação usada pelo agente deve apontar uma evidência disponível no caso. Referência inexistente, troca de identidade de agente, posição fora da fila ou resposta sem os campos obrigatórios invalida o parecer e aciona nova tentativa. Relato ou valor imputado não é apresentado como exame confirmatório.
+- **Falhas:** cada agente tem até 30 segundos por tentativa. Tentativas automáticas usam espera crescente, de cinco segundos até no máximo cinco minutos; após três falhas consecutivas, exibir "tribunal indisponível". A proposta permanece retida, com opção de reprocessamento. As tentativas cessam se a proposta perder validade, for encerrada ou expirar; nenhum resultado simulado substitui o parecer real.
+- **Maioria e ajuste:** manter os três votos e a divergência visíveis. Havendo várias posições sugeridas, a proposta de ajuste usa a posição menos adiantada entre elas e passa novamente pelas travas. Empate entre três vereditos diferentes continua resultando em ajustar, com a divergência explícita.
+- **Autoridade e equidade:** o médico pode discordar do parecer consultivo, registrando motivo. Essa decisão não dispensa as travas nem permite ao tribunal autorizar elevação acima de 10%, salvo a prevalência explícita da regra de ouro. Biópsia positiva com CID ainda não `C*` exige revisão, sem alteração automática do diagnóstico. Conflito entre a ROR e uma trava é uma pendência de modelo, não um caso que a maioria dos agentes possa liberar.
+- **Versão e auditoria:** se a fila mudar durante a análise ou antes da decisão, exigir nova proposta ou revalidação explícita, sem aplicar o parecer antigo silenciosamente. Guardar versão de fila, evidências, três manifestações, recomendação, tentativas, decisão, responsável e data/hora. Nome de profissional informado na demo não comprova identidade clínica verificada.
+- **Acesso e guarda:** restringir o caso aos envolvidos autorizados; pacientes não acessam evidências de outros pacientes nem o contexto interno do debate. Artefatos e decisões sintéticos da demonstração expiram em até sete dias da criação da proposta, ou antes por solicitação do responsável. Uma referência a documento que expire antes não permanece disponível ao provedor em tentativas futuras. Registros operacionais não contêm documentos, pareceres integrais, identificadores pessoais ou credenciais.
+
+As recomendações definem comportamento esperado. Sua inclusão não comprova implementação de expiração, autorização por paciente, validação semântica de linguagem clínica ou execução de um caso real no provedor.
+
 ## Critérios de aceite
 
 - [ ] O tribunal é acionado para propostas com pares incertos ou evidências conflitantes; a fila inicial é gerada sem chamadas de IA.
@@ -41,6 +54,10 @@ O valor do limite de elevação por reavaliação vem da spec de pontuação da 
 - [ ] O parecer fica persistido e consultável pelo identificador da proposta.
 - [ ] Os dados do paciente enviados ao tribunal e exibidos no parecer seguem a regra de mascaramento (LGPD).
 - [ ] A checagem das travas é reprodutível: a mesma proposta com as mesmas evidências é sempre barrada (ou liberada) da mesma forma.
+- [ ] Três falhas geram o aviso previsto; expiração, encerramento ou perda de validade impedem novas tentativas com documentos ou versões antigas.
+- [ ] Evidência inexistente e valor documental ainda não aprovado não são aceitos como comprovação clínica por simples votação.
+- [ ] Discordância médica é auditada e continua sujeita às travas; o tribunal não libera um conflito de modelagem nem altera o CID.
+- [ ] O cenário sintético de aceitação verifica retenção de até sete dias e impede acesso por usuário sem permissão para o caso.
 
 ## Fora do escopo
 
@@ -55,7 +72,7 @@ O valor do limite de elevação por reavaliação vem da spec de pontuação da 
 
 ## Questões em aberto
 
-Nenhuma. A escolha do LLM e do provedor, o tempo limite por agente e a política de novas tentativas são decisões do plano.
+Nenhuma decisão de escopo do MVP pendente. Tempo limite, aviso e política de falha estão definidos acima; a seleção de ferramenta, LLM e provedor permanece no plano. Conferir os termos do serviço, executar o caso real com dados sintéticos e verificar os controles de acesso/expiração são condições de aceitação, não resultados presumidos.
 
 ## Alinhamento da implementação
 
