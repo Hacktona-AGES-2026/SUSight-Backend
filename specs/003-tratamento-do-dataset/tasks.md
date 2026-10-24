@@ -1,0 +1,31 @@
+# Tarefas: Tratamento do dataset
+
+Plano: ./plan.md
+
+Cada tarefa corresponde a um commit atômico com suas verificações. Executar após aprovação do plano. Caminhos de código são propostos; se o setup da equipe introduzir estrutura equivalente, ajustar o plano antes de implementar.
+
+- [x] 1. Criar pacote Python e testes: `pyproject.toml`, `src/susight/__init__.py`, `src/susight/dataset/__init__.py`, `tests/dataset/test_package.py`. Validar importação e registrar pytest como dependência de desenvolvimento.
+- [x] 2. Implementar leitura e proveniência: `src/susight/dataset/io.py`, `tests/dataset/test_io.py`. Ler os três CSVs e referências, preservar arquivo/linha e valores originais, calcular hashes e recusar sobreposição de entrada/saída.
+- [x] 3. Validar contratos de entrada: `src/susight/dataset/validation.py`, `tests/dataset/test_validation.py`. Distinguir erro estrutural de pendência por registro; cobrir IDs conflitantes, colunas ausentes e medidas inválidas.
+- [x] 4. Normalizar categorias, CID e datas: `src/susight/dataset/normalization.py`, `tests/dataset/test_normalization.py`. Preservar originais, usar catálogo e referência fixa, testar equivalências e espera inválida.
+- [x] 5. Definir regras versionadas e extrair indícios: `src/susight/dataset/rules.json`, `src/susight/dataset/evidence.py`, `tests/dataset/test_evidence.py`. Guardar fonte/trecho, distinguir negação, incerteza, relato e evidência documentada; testar frases negativas para exclusão.
+- [x] 6. Consolidar solicitações compatíveis: `src/susight/dataset/consolidation.py`, `tests/dataset/test_consolidation.py`. Produzir aliases e canônica estável; testar contexto desconhecido, lateralidade, episódio distinto e conflitos de medidas.
+- [x] 7. Tratar eventos: `src/susight/dataset/events.py`, `tests/dataset/test_events.py`. Deduplicar antes de redirecionar aliases, preservar IDs, conferir paciente e separar órfãos, histórico e futuros.
+- [x] 8. Determinar atividade e pendências: `src/susight/dataset/activity.py`, `tests/dataset/test_activity.py`. Reunir evidências dos aliases, aplicar saídas explícitas e testar contradição, retomada, faltas e contatos sem resposta.
+- [x] 9. Preparar medidas com imputação rastreável: `src/susight/dataset/imputation.py`, `tests/dataset/test_imputation.py`. Calcular população fixa, medianas por especialidade e convenção ordinal; testar ausência total e prevenção de imputação em cascata.
+- [x] 10. Gerar relatórios e contratos de saída: `src/susight/dataset/reporting.py`, `tests/dataset/test_reporting.py`. Emitir os sete arquivos do plano, reconciliar cobertura e eventos e impedir publicação sobre destino existente.
+- [x] 11. Orquestrar pipeline e CLI: `src/susight/dataset/pipeline.py`, `src/susight/dataset/__main__.py`, `tests/dataset/test_pipeline.py`. Garantir saída de erro estrutural, publicação apenas ao concluir e reprodução substantiva entre execuções.
+- [x] 12. Documentar execução e conferir dataset fornecido: `docs/dataset-treatment.md`, `.gitignore`, `tests/dataset/test_integration.py`. Ignorar saídas geradas, usar fixtures sintéticas nos testes e registrar contagens e hashes da execução local de aceitação, sem depender do caminho pessoal nos testes automatizados.
+
+## Conclusão
+
+- [x] Conferir os critérios técnicos e registrar resultados e limitações em docs/backend-validation.md.
+- [x] Conferir tecnicamente DECISOES.md e a fonte de cada uma das 16 exclusões; manter 22 grupos candidatos separados para revisão.
+- [ ] Obter aceite do responsável da equipe sobre as exclusões e ambiguidades antes de uso real.
+- [x] Verificar consumo pela pontuação, cobertura reconciliada e verificador oficial na base completa.
+
+Os caminhos acima eram propostos; a organização executada é `core.py` e `pipeline.py`, detalhada em `../../docs/dataset-treatment.md`. Implementação concluída e executada; a revisão humana das exclusões e a aceitação clínica são pendências do PR.
+
+- [x] Adicionar validade e permissões privadas às saídas geradas e limpeza segura por manifesto.
+- [x] Não excluir solicitação atual por encerramento de evento histórico.
+- [x] Conferir integridade dos originais e reprodução da execução sem LLM.

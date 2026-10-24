@@ -1,0 +1,132 @@
+{
+  "politica": "priorizacao-sem-espera-v1",
+  "versao": "swing-demo-sem-espera-1",
+  "demonstrativa": true,
+  "swings_demonstrativos": {
+    "deterioracao": 100.0,
+    "limitacao": 80.0,
+    "dor": 70.0,
+    "comorbidades": 60.0,
+    "asa": 40.0,
+    "distancia": 20.0
+  },
+  "escalas": {
+    "limitacao": {
+      "minimo": 0.0,
+      "maximo": 3.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "asa": {
+      "minimo": 1.0,
+      "maximo": 4.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "dor": {
+      "minimo": 0.0,
+      "maximo": 10.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "comorbidades": {
+      "minimo": 0.0,
+      "maximo": 7.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "deterioracao": {
+      "minimo": 0.0,
+      "maximo": 20.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "distancia": {
+      "minimo": 0.0,
+      "maximo": 800.0,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    }
+  },
+  "pesos": {
+    "limitacao": {
+      "minimo": 0.16216216216216217,
+      "maximo": 0.2702702702702703,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "asa": {
+      "minimo": 0.08108108108108109,
+      "maximo": 0.13513513513513514,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "dor": {
+      "minimo": 0.14189189189189189,
+      "maximo": 0.23648648648648649,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "comorbidades": {
+      "minimo": 0.12162162162162163,
+      "maximo": 0.20270270270270271,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "deterioracao": {
+      "minimo": 0.20270270270270271,
+      "maximo": 0.33783783783783783,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    },
+    "distancia": {
+      "minimo": 0.04054054054054054,
+      "maximo": 0.06756756756756757,
+      "fonte": "Hipotese tecnica de demonstracao sintetica; sem validacao clinica ou atribuicao bibliografica"
+    }
+  },
+  "ordem_pesos": [],
+  "comparacoes": [
+    {
+      "antes": "SOL-2022-00002",
+      "depois": "SOL-2022-00005",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00003",
+      "depois": "SOL-2022-00047",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00005",
+      "depois": "SOL-2024-00104",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00007",
+      "depois": "SOL-2022-00005",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00009",
+      "depois": "SOL-2024-00089",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00012",
+      "depois": "SOL-2022-00005",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00014",
+      "depois": "SOL-2024-00104",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00018",
+      "depois": "SOL-2022-00014",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00019",
+      "depois": "SOL-2022-00005",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    },
+    {
+      "antes": "SOL-2022-00020",
+      "depois": "SOL-2022-00049",
+      "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
+    }
+  ],
+  "janela": 1,
+  "margem": 0.00001
+}
