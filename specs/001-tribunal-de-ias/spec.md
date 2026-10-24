@@ -23,7 +23,7 @@ O tribunal é consultivo. Quem decide é o médico (constituição, princípios 
 7. A proposta com o parecer segue para o médico. Nada muda na fila antes da aprovação dele.
 8. Relato do paciente sozinho (sem exame ou evento clínico) não sustenta o veredito `a_favor` do agente de Evidências; o parecer destaca a ausência de comprovação.
 9. O parecer completo (as três manifestações, os vereditos e a recomendação) fica guardado e é vinculado à proposta, para consulta e auditoria.
-10. Se algum agente falhar ou passar do tempo limite, a proposta fica retida com a situação "aguardando tribunal" e o sistema tenta de novo automaticamente. Nenhuma proposta chega ao médico sem o parecer completo dos três agentes.
+10. Se algum agente falhar ou passar do tempo limite, a proposta fica retida com a situação "aguardando tribunal" e o sistema tenta de novo automaticamente. Depois de algumas tentativas sem sucesso, a proposta passa a exibir o aviso "tribunal indisponível" na lista de pendências, para que a equipe saiba que ela está parada, e o sistema continua tentando. Nenhuma proposta chega ao médico para decisão sem o parecer completo dos três agentes.
 
 O valor do limite de elevação por reavaliação vem da spec de pontuação da fila (issue #6). O tribunal usa o valor definido lá.
 
@@ -33,7 +33,7 @@ O valor do limite de elevação por reavaliação vem da spec de pontuação da 
 - [ ] Cada caso gera exatamente três manifestações, uma por agente, cada uma com veredito e justificativa.
 - [ ] A recomendação final é uma de: aprovar, ajustar ou negar, e segue a maioria dos votos.
 - [ ] Com votos divididos, o voto vencido aparece em destaque; com três votos diferentes, a recomendação é ajustar.
-- [ ] Se um agente falha ou passa do tempo limite, a proposta fica "aguardando tribunal", é reprocessada e não chega ao médico sem parecer completo.
+- [ ] Se um agente falha ou passa do tempo limite, a proposta fica "aguardando tribunal", é reprocessada e não chega ao médico sem parecer completo. Após as tentativas iniciais falharem, ela mostra o aviso "tribunal indisponível".
 - [ ] Uma proposta que viola a regra de ouro oncológica (CID `C*` abaixo de paciente sem urgência clínica) nunca chega ao médico como aprovável, mesmo com os três votos `a_favor`.
 - [ ] Uma proposta que excede o limite de elevação por reavaliação é barrada ou reduzida ao limite, e o parecer informa isso.
 - [ ] Caso sustentado só por relato do paciente é sinalizado como sem comprovação por exame.
