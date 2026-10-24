@@ -1,7 +1,7 @@
 # Plano: Tratamento do dataset
 
 Spec: ./spec.md
-Status: em revisão
+Status: aprovado para implementação pelo usuário em 2026-10-24
 
 ## Abordagem
 
@@ -92,4 +92,4 @@ O verificador oficial exige a fila já ordenada e será executado depois da pont
 
 ## Dependências e aprovação
 
-Spec aprovada pelo usuário em 2026-10-24. Este plano e sua convenção de mediana ordinal aguardam revisão antes da implementação. Não depende de LLM, FastAPI ou definição de pesos.
+Spec aprovada pelo usuário em 2026-10-24. Plano e convenção de mediana ordinal autorizados no pedido de implementação de todas as specs. Não depende de LLM, FastAPI ou definição de pesos.
