@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "duplicate_compatibility": "same_normalized_clinical_text_and_observations_with_known_context",
+  "concepts": {
+    "desistencia": "desistiu|desiste|desistencia",
+    "cirurgia_outro_servico": "(?:cirurgia|operad[oa]|operou).{0,65}(?:outro (?:servico|hospital)|rede privada|particular)",
+    "retomada": "retomou|reativ|deseja (?:continuar|permanecer)|nao desistiu",
+    "piora": "piora|agravamento|progressao",
+    "alarme": "encarcer|estrangul|colangite|icter|pancreatite|enterorragia|melena|hematemese|suboclus|perda ponderal|disfagia|sepse|hidronefrose|perda de funcao|transfund|hemoptise|rouquidao|linfonodo.*(?:fixo|palpavel)|sangramento espontaneo|acamad|ulcera de pressao|quedas de repeticao|glaucoma facomorfico|retencao de co2|dano neurologico|psa em elevacao|dessaturacao|angina em repouso|sincope|crescimento rapido|retencao urinaria aguda|massa anexial|ca-125",
+    "has": "\\bhas\\b|hipertensao",
+    "dm": "\\bdm2?\\b|diabetes",
+    "obesidade": "obesidade",
+    "cardiopatia": "cardiopatia|insuficiencia cardiaca",
+    "dpoc": "\\bdpoc\\b"
+  },
+  "negation": "nao|nega|negou|sem|ausencia",
+  "uncertainty": "suspeit|possiv|talvez|hipotese|pretende|planej|deseja|aguarda|vai realizar|a realizar"
+}
