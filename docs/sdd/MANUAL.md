@@ -21,12 +21,13 @@ docs/sdd/MANUAL.md       Este manual
 2. **Spec.** Copie `specs/_template` para `specs/NNN-nome-da-feature` e preencha `spec.md`. Descreva o comportamento esperado e os critérios de aceite. Não fale de tecnologia aqui.
 3. **Revisão da spec.** Uma pessoa da equipe revisa e aprova a spec antes de seguir.
 4. **Plano.** Preencha `plan.md`: abordagem técnica, dados envolvidos, riscos e decisões. Revise e aprove.
-5. **Tarefas.** Preencha `tasks.md` com passos pequenos e verificáveis. Cada passo vira um commit atômico.
-6. **Implementação.** Execute as tarefas em ordem. Se o código precisar divergir da spec, atualize a spec primeiro.
+5. **Tarefas.** Preencha `tasks.md` com passos pequenos e verificáveis. Cada passo começa pelo teste que o comprova. Cada passo vira um commit atômico.
+6. **Implementação (TDD).** Execute as tarefas em ordem. Em cada tarefa, escreva primeiro o teste que verifica o critério de aceite e confirme que ele falha (red). Só então escreva o código mínimo para passar (green) e depois refatore. Se o código precisar divergir da spec, atualize a spec primeiro.
 7. **Verificação.** Confira cada critério de aceite da spec. A feature só está pronta quando todos passam.
 
 ## Regras
 
+- Teste antes do código (TDD): nenhum código de feature entra sem um teste que falhou antes e passa depois.
 - A spec é a fonte da verdade. Código e spec nunca devem discordar.
 - Uma feature por pasta, numerada em sequência (001, 002, ...).
 - Dúvida em aberto vai para a seção "Questões em aberto" da spec, não para um palpite no código.
