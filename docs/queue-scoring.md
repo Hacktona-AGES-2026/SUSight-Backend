@@ -29,10 +29,13 @@ não é chamado de incerteza. Valores além dos limites são saturados e a confi
 precisa escolher limites coerentes com o swing comparado.
 
 A ordem é lexicográfica: o grupo protegido (CID C* e os casos que não estão no
-grupo sem urgência) antecede o grupo sem urgência. As comparações de utilidade,
-necessidade e possibilidade são feitas dentro do grupo. Espera não entra no peso,
-desempate, trava ou escolha dos pares de referência; empate final usa ID estável. Entre grupos, a
-relação tem origem `hierarquia_regra_de_ouro` e extremos aditivos null. Não se
+grupo sem urgência) antecede o grupo sem urgência e, dentro do grupo protegido, a
+classe SWALIS ordena em camadas (A1, A2, B, C, D). A classe usa só dados clínicos;
+espera e prazo não entram. As comparações de utilidade, necessidade e possibilidade
+são feitas dentro da mesma camada. Espera não entra no peso,
+desempate, trava ou escolha dos pares de referência; empate final usa ID estável. Entre
+camadas, a relação tem origem `hierarquia_swalis` (dentro do grupo protegido) ou
+`hierarquia_regra_de_ouro` (contra o grupo sem urgência), com extremos aditivos null. Não se
 interpreta a pontuação bruta de um grupo como prioridade superior à do outro.
 Comparação de referência contrária à hierarquia é rejeitada; restrições incompatíveis
 dentro dos grupos continuam bloqueando publicação. Essa convenção resolve a
@@ -72,8 +75,9 @@ identificáveis; nunca se transforma imputação em evidência documental observ
 A configuração exige `politica: "priorizacao-sem-espera-v1"`. Configurações legadas
 com espera são rejeitadas, inclusive quando ela aparece apenas nos swings.
 As contribuições e o número de variáveis são derivados dos critérios ativos.
-Dias de fila e SWALIS podem permanecer como metadados administrativos; não são
-enviados ao tribunal nem usados para ordenar. Deterioração documentada é separada.
+Dias de fila e a razão de prazo SWALIS permanecem como metadados administrativos;
+não são enviados ao tribunal nem usados para ordenar. A classe SWALIS, derivada de
+dados clínicos, é a camada de precedência descrita acima. Deterioração documentada é separada.
 
 O manifesto registra política, hash das preferências, da entrada e das saídas.
 Filas calculadas com política anterior precisam ser regeneradas e reimportadas;

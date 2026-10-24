@@ -33,7 +33,8 @@ uv run --no-sync python tools/verificar_fila_priorizada.py \
 A configuração em `examples/preferences-demo.json` contém escores de swing e faixas
 **demonstrativas**, sem validação clínica nem atribuição de percentuais à literatura.
 A política `priorizacao-sem-espera-v1` remove espera de pesos, desempates e travas.
-A hierarquia rígida é aplicada antes da ROR; a base inteira gerou 925 posições e
+A hierarquia rígida (grupo protegido antes do sem urgência e, dentro dele, classe
+SWALIS A1 → D) é aplicada antes da ROR; a base inteira gerou 925 posições e
 passou no verificador oficial. Ver [validação](docs/backend-validation.md).
 
 Para reproduzir a aceitação técnica, sem chamadas de IA:
