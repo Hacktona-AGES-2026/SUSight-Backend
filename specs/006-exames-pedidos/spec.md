@@ -1,7 +1,7 @@
 # Spec: Exames pedidos pelo médico
 
 Issue: a definir
-Status: rascunho
+Status: aprovada para implementação (decisões do usuário em 2026-10-24)
 
 ## Contexto
 
@@ -15,6 +15,9 @@ Quando o médico escolhe "pedir informações" (web 004), o paciente precisa ver
 4. O paciente lista seus pedidos e vê o nome do exame e a situação. O médico vê se o paciente respondeu.
 5. Quando o paciente envia o exame pedido, o médico recebe aviso (spec 005) e a proposta volta para análise.
 6. Pedir informações não altera a fila (princípio 1).
+7. Enquanto a extração automática (spec 001) não existe, `em_analise` começa quando a primeira evidência do documento é registrada e o pedido fica `atendido` quando essa evidência é revisada pelo profissional.
+8. "A proposta volta para análise" significa: o recebimento entra na trilha (spec 004) como `exame_recebido` e o médico pode criar nova proposta com as evidências aprovadas. A proposta encerrada não é reaberta automaticamente, porque o tribunal só analisa evidências aprovadas.
+9. Um documento só pode ser ligado a um pedido `pendente` da mesma solicitação. Pedir informações sem informar ao menos um exame é recusado; as demais decisões não aceitam exames.
 
 ## Critérios de aceite
 
@@ -24,6 +27,10 @@ Quando o médico escolhe "pedir informações" (web 004), o paciente precisa ver
 - [ ] Um paciente só vê pedidos da própria solicitação.
 - [ ] Pedir informações não muda posição na fila.
 - [ ] A quantidade de pedidos pendentes pode ser consultada para o widget.
+- [ ] A revisão da evidência do documento ligado muda o pedido para `atendido`.
+- [ ] Ligar documento a pedido de outra solicitação ou já respondido é recusado.
+- [ ] Pedir informações sem exame é recusado, e exames em outra decisão também.
+- [ ] O recebimento do exame pedido aparece no histórico da solicitação.
 
 ## Testes (TDD)
 
@@ -35,8 +42,9 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 - Cancelamento do pedido pelo paciente.
 - Situação "Revisado" e pedido de confirmação ao paciente sobre um documento (fora do MVP do app).
 
-## Questões em aberto
+## Decisões
 
-- O pedido tem prazo (como "Enviar até sexta") ou só a data de criação?
-- O médico pode pedir mais de um exame na mesma decisão?
-- O paciente pode excluir um documento já enviado? (pergunta em aberto na spec 001 do app)
+- O pedido não tem prazo, só a data de criação.
+- O médico pode pedir até 10 exames na mesma decisão; cada um vira um pedido.
+- O paciente não exclui documento já enviado nesta etapa.
+- Pedidos não expiram, como a trilha da spec 004: guardam só nome do exame e explicação.
