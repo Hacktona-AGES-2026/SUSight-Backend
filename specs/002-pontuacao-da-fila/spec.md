@@ -38,19 +38,19 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 
 ### Ordenação robusta
 
-8. O sistema considera todas as funções de valor aditivas compatíveis com as restrições e as comparações de referência.
+8. A ordenação é hierárquica: primeiro o grupo protegido (CID C* ou não classificado como sem urgência), depois o grupo sem urgência clínica ou assim identificado pelo verificador. Essa precedência é rígida e não depende dos pesos. Dentro de cada grupo, o sistema considera todas as funções de valor aditivas compatíveis com as restrições. Comparações entre grupos são verificadas contra a hierarquia; não são usadas para ajustar os pesos. Uma comparação que contrarie a hierarquia é rejeitada explicitamente.
 9. Para cada par de solicitações próximas na fila (a janela de proximidade é definida no plano), o sistema determina:
    - **ordem necessária:** A fica à frente de B em todas as ponderações compatíveis;
    - **ordem possível:** A fica à frente de B em pelo menos uma ponderação compatível.
 10. Quando há modelos compatíveis em que A supera estritamente B e outros em que B supera estritamente A, o par é marcado como **incerto**. Um empate em todos os modelos é identificado separadamente como empate necessário. Pares incertos são os candidatos a irem ao tribunal de IAs; incerteza não é um percentual de probabilidade clínica.
-11. O sistema escolhe uma **função de valor representativa** entre as compatíveis para produzir uma ordem completa (necessária para o CSV), respeitando todas as ordens necessárias. O critério de escolha é definido no plano.
+11. O sistema escolhe uma **função de valor representativa** entre as compatíveis para produzir uma ordem completa (necessária para o CSV), respeitando as ordens necessárias dentro de cada grupo e a precedência rígida entre grupos. O critério de escolha é definido no plano.
 
 ### Travas de equidade (aplicadas por cima da ordem)
 
 12. **Regra de ouro:** nenhum paciente com CID iniciado por `C` (normalizado, sem depender da flag) fica abaixo de um paciente sem urgência clínica. A definição de "sem urgência clínica" é no mínimo tão rigorosa quanto a do `verificar_fila_priorizada.py`.
 13. **Limite de elevação por reavaliação:** depois da fila inicial, uma reavaliação não sobe o paciente mais do que 10% do tamanho da fila ativa de uma vez (arredondado para baixo). A passagem pelo tribunal não dispensa esse limite. A regra de ouro prevalece sobre ele quando um CID `C*` validado exigir subida maior; uma biópsia positiva com CID ainda não `C*` gera revisão clínica e não reescreve o diagnóstico nem aciona silenciosamente essa exceção.
 14. **Não ultrapassar quem tem prioridade maior e mais espera:** um paciente não passa à frente de outro que tenha, ao mesmo tempo, pontuação de prioridade maior e mais dias de espera.
-15. Nenhum peso consegue compensar uma violação das travas: elas valem sempre, por cima da pontuação.
+15. Nenhum peso compensa a precedência rígida. Pontuação maior e mais espera impedem ultrapassagem dentro do mesmo grupo; entre grupos prevalece a hierarquia. A justificativa distingue precedência rígida de comparação ROR.
 
 ### Saída
 
@@ -64,11 +64,11 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 - **Comportamento padrão:** calcular todas as relações entre vizinhos da fila final. Pares mais distantes só recebem classificação quando efetivamente avaliados. Usar nomes de relações e motivos de revisão; não adotar o exemplo "0,2" como limiar de incerteza sem definição e validação de uma medida correspondente.
 - **Critérios clínicos:** ASA 1–4 é o domínio do dataset, não uma autorização para reduzir classes incompatíveis extraídas de documentos. Dor sem escala explícita, comorbidade não confirmada, dado ilegível e categorização funcional inferida ficam para revisão. As adaptações de SWALIS, gravidade de comorbidades e deterioração são registradas como premissas técnicas e precisam de validação antes de uso real.
 - **Imputação:** no dataset, usar mediana da especialidade sobre observações válidas de canônicas ativas, sem cascata; em categorias ordinais e EVA inteira, usar o elemento central superior. Sem população válida, manter pendência. Nunca usar mediana para alterar CID, comprovar ausência de urgência ou converter um campo documental `null` em evidência observada.
-- **Conflitos de modelo:** a recomendação para o MVP atual é bloquear publicação e explicar o conflito quando uma ordem necessária e uma trava rígida forem incompatíveis. Não escolher pesos oportunistas apenas para obter aprovação do verificador, omitir pacientes ou solicitar à IA que resolva a contradição. A precedência oncológica antes da comparação de utilidade é uma alternativa de evolução a ser especificada e validada; não se presume implementada nem aprovada como solução clínica.
+- **Conflitos de modelo:** a regra de ouro é representada na hierarquia antes da ROR, não como competição entre pesos. Entre grupos, a relação é uma precedência rígida, com extremos de utilidade não aplicáveis; não é apresentada como conclusão aditiva. Restrições incompatíveis dentro dos grupos ou comparações contrárias à hierarquia continuam bloqueando publicação. Esta é uma convenção técnica da demonstração sintética, não validação clínica das escalas.
 - **Publicação e auditoria:** nenhuma fila parcial com pendências impeditivas é apresentada como completa. Guardar cobertura, versão da entrada, preferências, fontes, função representativa, relações avaliadas, travas e justificativas. A origem da incerteza deve distinguir sensibilidade aos pesos de incompletude da evidência.
 - **Acesso e guarda:** limitar o relatório ao que cada envolvido está autorizado a consultar. Cópias de trabalho e saídas sintéticas geradas para a demonstração expiram em até sete dias da geração, ou antes por solicitação do responsável; a fonte original imutável do desafio e fixtures inteiramente sintéticas versionadas não são apagadas por essa regra. Não enviar nome, CNS ou texto identificável a serviço externo para pontuar a fila.
 
-As recomendações não resolvem o conflito já observado no dataset completo nem atestam que as escalas ou preferências demonstrativas tenham validação clínica. Permanecem as pendências de aceitação registradas no PR consolidado.
+A hierarquia resolve a contradição técnica identificada entre precedência e utilidade aditiva. A aceitação requer regressão no dataset completo e verificador oficial; as escalas e preferências demonstrativas continuam explicitamente sem validação clínica.
 
 ## Critérios de aceite
 
@@ -81,13 +81,13 @@ As recomendações não resolvem o conflito já observado no dataset completo ne
 - [ ] As comparações de referência são respeitadas pela ordem final.
 - [ ] Restrições contraditórias geram uma mensagem que aponta o conflito, e nenhuma fila é gerada.
 - [ ] Cada par de vizinhos é classificado como ordem necessária, empate necessário ou incerto por reversibilidade estrita, sem percentual de probabilidade clínica presumido.
-- [ ] A ordem final respeita todas as ordens necessárias.
+- [ ] A ordem final respeita a hierarquia e as ordens necessárias dentro dos grupos; diferenças numéricas de ROR entre grupos não são apresentadas como prioridade superior.
 - [ ] O arquivo gerado passa no `verificar_fila_priorizada.py` sem erros (formato e regra de ouro).
-- [ ] Nenhum paciente ultrapassa outro com pontuação de prioridade maior e mais dias de espera.
+- [ ] Dentro de cada grupo, nenhum paciente ultrapassa outro com pontuação maior e mais espera; entre grupos prevalece a precedência rígida.
 - [ ] Toda linha tem justificativa legível em português do Brasil, sem diagnóstico.
 - [ ] Rodar duas vezes com os mesmos dados e as mesmas restrições produz a mesma fila.
 - [ ] A ausência na extração documental continua `null` e rastreável; a imputação do dataset não é apresentada como valor documentado.
-- [ ] Um conflito de ROR e regra de ouro impede a publicação e identifica os casos; votação do tribunal não libera a contradição.
+- [ ] O par de regressão oncológico/sem urgência respeita a hierarquia mesmo quando a utilidade aditiva isolada favorece o segundo; uma comparação de referência contrária à hierarquia é rejeitada.
 - [ ] Toda premissa demonstrativa está identificada como tal; nenhuma faixa numérica aparece atribuída a uma referência sem sustentação registrada.
 - [ ] O cenário de aceitação verifica autorização dos relatórios e expiração das saídas temporárias de demonstração, preservando a fonte original imutável.
 
@@ -101,7 +101,7 @@ As recomendações não resolvem o conflito já observado no dataset completo ne
 
 ## Questões em aberto
 
-Nenhuma decisão de escopo do MVP pendente. O padrão avalia todos os vizinhos; o plano detalha a escolha reprodutível da função representativa e eventual ampliação da janela. Revisão das fontes, validação das escalas e solução do conflito da base completa continuam pendências de aceitação. Recomendações de escopo não são validação dos pesos nem autorização para publicar uma fila incompatível.
+Nenhuma decisão de escopo do MVP pendente. O padrão avalia todos os vizinhos; o plano detalha a escolha reprodutível da função representativa e eventual ampliação da janela. Revisão das fontes, validação das escalas e conferência do CSV completo continuam condições de aceitação. Recomendações de escopo não são validação dos pesos nem autorização para publicar uma fila incompatível.
 
 ## Estado da implementação
 

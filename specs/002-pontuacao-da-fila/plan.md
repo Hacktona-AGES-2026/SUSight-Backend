@@ -51,3 +51,7 @@ Viabilidade, conflito mínimo, representatividade, reversibilidade versus empate
 monotonicidade, travas, exportação reproduzível e verificador oficial no dataset.
 
 Referência técnica: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-highs.html
+
+## Complemento autorizado em 2026-10-24
+
+Aplicar ordenação lexicográfica por grupo protegido/sem urgência antes da utilidade. A ROR compartilha as faixas e escalas, mas só recebe comparações holísticas dentro de grupo; comparações entre grupos são verificadas como precedência. O código e as travas usam a mesma função de grupo. Relações entre grupos têm origem hierárquica, sem extremos de utilidade. Preferências de exemplo incluem escores de swing demonstrativos e faixas reproduzíveis, sem atribuir números à literatura. Executar a base inteira e o verificador oficial. Validação clínica continua externa ao teste técnico.

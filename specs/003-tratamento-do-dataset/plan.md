@@ -97,3 +97,7 @@ Spec aprovada pelo usuário em 2026-10-24. Plano e convenção de mediana ordina
 ## Organização executada
 
 Passos implementados em `dataset/core.py` (leitura, validação, normalização, texto e consolidação), `dataset/pipeline.py` (eventos, atividade, imputação e publicação) e `dataset/__main__.py` (CLI). Evidências da execução e limites em `../../docs/backend-validation.md`.
+
+## Complemento autorizado em 2026-10-24
+
+Implementar identidades com permissões por paciente, registro documental com evidência e revisão auditável, retenção máxima de sete dias e bloqueio de tentativas quando referências perderem validade. Tokens de acesso são individuais e carregados da configuração local; decisões usam identidade autenticada. A integração documental registra fonte/trecho/valor e aprovação, sem implementar OCR nem chamar Gemini nesta etapa. Dados aprovados são comparados ao registro do servidor; o cliente não pode declarar aprovação por conta própria. Limpeza abrange conteúdo dependente, relatórios e arquivos gerados em diretórios registrados, preservando originais. Testes usam relógio injetado. Atualizar documentação e verificar todos os critérios técnicos; revisão clínica não é fabricada.
