@@ -130,8 +130,10 @@ def test_imported_criteria_swalis_and_priority_reach_the_detail(history_api):
     rows = client.get("/fila").json()["pacientes"]
     for row in rows:
         row.pop("em_reavaliacao", None)
+        # Whole queue in one SWALIS class: a lone class would break the hierarchy check of the SWALIS layer.
+        row["swalis"] = "C"
         if row["solicitacao_id"] == "20":
-            row |= {"criterios": CRITERIA, "swalis": "C", "prioridade_regulacao": "Alta"}
+            row |= {"criterios": CRITERIA, "prioridade_regulacao": "Alta"}
     assert (
         client.put("/fila", json={"versao_esperada": current(client), "pacientes": rows}).status_code == 200
     )
