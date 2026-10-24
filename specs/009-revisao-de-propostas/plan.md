@@ -1,7 +1,7 @@
 # Plano: Lista e detalhe de propostas para revisão médica
 
 Spec: ./spec.md
-Status: rascunho
+Status: implementado
 
 ## Abordagem
 

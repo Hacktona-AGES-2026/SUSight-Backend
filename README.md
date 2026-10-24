@@ -3,6 +3,11 @@
 Tratamento rastreável do dataset, pontuação com Robust Ordinal Regression e tribunal
 consultivo de três agentes. A aplicação só altera a fila após decisão médica explícita.
 
+## Entrega do desafio
+
+- [DECISOES.md](DECISOES.md): abordagem, usuário, motivos, o que ficou de fora de propósito e pendências.
+- [fila_priorizada.csv](fila_priorizada.csv): a fila ordenada (`solicitacao_id`, `posicao`, `justificativa`), gerada pela `dev` e aprovada pelo verificador oficial. Parametrização demonstrativa, sem validação clínica.
+
 ## Executar
 
 Python 3.11+ e [uv](https://docs.astral.sh/uv/).

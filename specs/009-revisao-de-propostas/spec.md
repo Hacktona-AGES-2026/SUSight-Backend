@@ -1,7 +1,7 @@
 # Spec: Lista e detalhe de propostas para revisão médica
 
 Issue: a definir
-Status: rascunho
+Status: implementada (PR #20, na dev pelo PR #21); resta avisar o time do web dos nomes dos campos
 
 ## Contexto
 
