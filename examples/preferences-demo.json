@@ -1,0 +1,131 @@
+{
+  "versao": "demo-1",
+  "demonstrativa": true,
+  "escalas": {
+    "limitacao": {
+      "minimo": 0,
+      "maximo": 3,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "asa": {
+      "minimo": 1,
+      "maximo": 4,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "dor": {
+      "minimo": 0,
+      "maximo": 10,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "comorbidades": {
+      "minimo": 0,
+      "maximo": 7,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "espera": {
+      "minimo": 0,
+      "maximo": 120,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "deterioracao": {
+      "minimo": 0,
+      "maximo": 20,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    },
+    "distancia": {
+      "minimo": 0,
+      "maximo": 800,
+      "fonte": "Premissa tecnica demonstrativa; limites fixos sem validacao clinica"
+    }
+  },
+  "pesos": {
+    "limitacao": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "asa": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "dor": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "comorbidades": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "espera": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "deterioracao": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    },
+    "distancia": {
+      "minimo": 0.01,
+      "maximo": 0.94,
+      "fonte": "Faixa demonstrativa ampla; requer validacao do decisor"
+    }
+  },
+  "comparacoes": [
+    {
+      "antes": "SOL-2022-00002",
+      "depois": "SOL-2022-00005",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00003",
+      "depois": "SOL-2022-00009",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00005",
+      "depois": "SOL-2023-00056",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00007",
+      "depois": "SOL-2022-00005",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00009",
+      "depois": "SOL-2024-00089",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00012",
+      "depois": "SOL-2022-00005",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00014",
+      "depois": "SOL-2022-00053",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00018",
+      "depois": "SOL-2022-00014",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00019",
+      "depois": "SOL-2022-00005",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    },
+    {
+      "antes": "SOL-2022-00020",
+      "depois": "SOL-2024-00127",
+      "fonte": "Comparacao demonstrativa por dominancia monotona, nao elicitacao clinica"
+    }
+  ],
+  "janela": 1
+}
