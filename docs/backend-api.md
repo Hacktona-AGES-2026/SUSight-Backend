@@ -52,6 +52,17 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `GET/POST /dispositivos`, `DELETE /dispositivos/{id}` | Dispositivos da própria identidade para entrega futura de push; o token não é devolvido (spec 005). |
 | `POST /sessoes` | Login com `identificador` e `senha`; devolve token de sessão. 401 genérico; 429 com conta bloqueada (spec 007). |
 | `DELETE /sessoes` | Sai da conta: encerra a sessão e remove os dispositivos da identidade (spec 007). |
+| `GET /termos/upload` | Versão e texto (minuta) do termo de envio (spec 001). |
+| `POST /documentos/arquivo` | Envio do arquivo em base64 com aceite do termo; valida formato, tamanho e páginas (spec 001). |
+| `POST /documentos/{id}/extracao` | Lê o PDF localmente, mascara e, se seguro, envia ao extrator; senão, revisão manual (spec 001). |
+| `GET /documentos/{id}/extracao` | Situação, avisos e os sete campos com evidências e última revisão (spec 001). |
+| `POST /documentos/{id}/campos/{campo}/revisao` | Aprovação, correção ou rejeição do campo pelo profissional; o valor extraído é preservado (spec 001). |
+
+A extração só envia ao Gemini texto mascarado de documento sintético e só com
+`GEMINI_MODEL` e `GEMINI_API_KEY` configurados; sem isso fica `pendente`, sem resposta
+simulada. Imagens e PDFs digitalizados vão para revisão manual. Toda saída do extrator
+passa pela validação de `susight.extraction.normalize`: valor sem trecho existente no
+texto, de confiança baixa ou fora do domínio vira `null` com revisão.
 
 Sessões expiram após 30 minutos sem uso; cinco senhas erradas seguidas bloqueiam a
 conta por 15 minutos. A senha fica só como hash scrypt com sal, e o token de sessão só
