@@ -1,7 +1,9 @@
 # Spec: Tratamento do dataset
 
 Issue: Hacktona-AGES-2026/SUSight#5
-Status: em revisão
+Status: aprovada
+
+Aprovação: usuário, em 2026-10-24, nesta conversa.
 
 ## Contexto
 
