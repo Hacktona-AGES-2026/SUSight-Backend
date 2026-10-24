@@ -237,6 +237,8 @@ def create_app(
         return {
             "politica": POLICY_VERSION,
             "versao": version,
+            # Whole-queue size, so a patient who sees only their own row can say "42nd of 118".
+            "total": len(rows),
             "pacientes": [
                 r | {"em_reavaliacao": r["solicitacao_id"] in disputed} for r in rows if principal.permits(r)
             ],
