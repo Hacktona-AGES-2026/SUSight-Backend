@@ -1,7 +1,7 @@
 # Spec: Notificações, preferências e contatos
 
 Issue: a definir
-Status: rascunho
+Status: aprovada para implementação (decisões do usuário em 2026-10-24)
 
 ## Contexto
 
@@ -30,6 +30,14 @@ O app do paciente (specs 002, 003 e 004) mostra notificações no sino, permite 
 
 9. O app registra o dispositivo do paciente para receber avisos na tela de bloqueio e atualizar widgets quando a posição muda ou um exame é pedido, recebido ou entra em análise. O dispositivo pode ser removido ao sair da conta.
 
+**Detalhamento para a implementação**
+
+10. As notificações do paciente nascem dos fatos que já entram na trilha (spec 004): documento recebido, exame pedido, posição alterada e reavaliação concluída; e da revisão de evidência, que marca a análise do documento como concluída. "Prioridade validada" só passa a existir quando houver a operação de validação pela regulação.
+11. As notificações do médico nascem quando o tribunal deixa uma proposta pronta para revisão, quando uma mudança de posição é aprovada e quando o paciente envia um exame pedido. Cada médico vê as dos casos que pode revisar e marca como lida para si.
+12. As preferências desligáveis são `documento_recebido`, `analise_concluida` e `prioridade_validada`. Tentar desligar o aviso de exame pedido é recusado.
+13. Nesta etapa as notificações ficam guardadas e listáveis; a entrega por push é fora do escopo. O dispositivo é removido pela rota própria; a remoção automática ao sair da conta entra com a spec 007.
+14. Contatos não têm acesso próprio: apenas recebem avisos curtos, quando houver entrega. O telefone é guardado como informado e sempre devolvido mascarado, mostrando só os quatro últimos dígitos.
+
 ## Critérios de aceite
 
 - [ ] Cada evento do item 1 gera uma notificação para o paciente correto.
@@ -39,7 +47,9 @@ O app do paciente (specs 002, 003 e 004) mostra notificações no sino, permite 
 - [ ] Telefone de contato é devolvido mascarado.
 - [ ] Um paciente não lê notificações, contatos ou dispositivos de outro.
 - [ ] Notificações não contêm diagnóstico, nome completo nem CNS.
-- [ ] Ao sair da conta, o dispositivo deixa de receber avisos.
+- [ ] Ao sair da conta, o dispositivo deixa de receber avisos. Nesta spec: o dispositivo removido deixa de aparecer; a remoção automática no logout é testada na spec 007.
+- [ ] O médico recebe aviso de proposta pronta para revisão, de mudança aprovada e de exame pedido recebido, só dos casos que pode revisar.
+- [ ] Desligar o aviso de exame pedido é recusado.
 
 ## Testes (TDD)
 
@@ -51,8 +61,8 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 - Envio efetivo pelo serviço de push do iOS ou Android.
 - Canal de WhatsApp e chatbot.
 
-## Questões em aberto
+## Decisões
 
-- Qual serviço entrega os avisos de push no hackathon, ou só se simula a lista no app?
-- Os contatos têm acesso próprio (login) ou só recebem mensagens?
-- Notificações expiram? Ver spec 004-historico-e-retencao.
+- Push não é entregue nesta etapa: notificações ficam guardadas e listáveis, e o dispositivo fica registrado para a entrega futura.
+- Contatos não têm login.
+- Notificações não expiram, como a trilha da spec 004.
