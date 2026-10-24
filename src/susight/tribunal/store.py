@@ -18,6 +18,48 @@ class EvidenceUnavailable(ValueError):
     pass
 
 
+# Spec 005: fixed, non-alarming texts; never document content, name or CNS.
+EVENT_NOTICES = {
+    "documento_recebido": [
+        ("paciente", "documento_recebido", "Documento recebido", "Recebemos o seu documento.")
+    ],
+    "informacao_solicitada": [
+        ("paciente", "exame_pedido", "Falta um exame", "O médico pediu um exame. Envie pela aba Documentos.")
+    ],
+    "posicao_alterada": [
+        (
+            "paciente",
+            "posicao_alterada",
+            "Sua posição mudou",
+            "Sua posição na fila foi atualizada após revisão médica.",
+        ),
+        (
+            "profissional",
+            "fila_atualizada",
+            "Fila aprovada e atualizada",
+            "Uma mudança de posição foi aprovada.",
+        ),
+    ],
+    "reavaliacao_concluida": [
+        (
+            "paciente",
+            "reavaliacao_concluida",
+            "Reavaliação concluída",
+            "A reavaliação da sua solicitação terminou.",
+        )
+    ],
+    "exame_recebido": [
+        (
+            "profissional",
+            "paciente_respondeu",
+            "Paciente respondeu ao pedido",
+            "O paciente enviou o exame pedido.",
+        )
+    ],
+}
+OPTIONAL_NOTICES = ("documento_recebido", "analise_concluida", "prioridade_validada")
+
+
 class Store:
     def __init__(self, path, clock=time.time):
         self.path, self.clock = str(path), clock
@@ -52,6 +94,17 @@ class Store:
               resultado TEXT, justificativa TEXT, concluded_at TEXT);
             CREATE TABLE IF NOT EXISTS exports(id INTEGER PRIMARY KEY, actor TEXT NOT NULL, created_at TEXT NOT NULL,
               versao_fila INTEGER NOT NULL, linhas INTEGER NOT NULL);
+            -- Notifications, preferences, contacts and devices (spec 005); no expiry, no document content.
+            CREATE TABLE IF NOT EXISTS notifications(id INTEGER PRIMARY KEY, publico TEXT NOT NULL, paciente_id TEXT,
+              sid TEXT NOT NULL, tipo TEXT NOT NULL, titulo TEXT NOT NULL, texto TEXT NOT NULL, created_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL, leitor TEXT NOT NULL,
+              PRIMARY KEY(notification_id, leitor));
+            CREATE TABLE IF NOT EXISTS notification_prefs(paciente_id TEXT NOT NULL, tipo TEXT NOT NULL,
+              ativo INTEGER NOT NULL, PRIMARY KEY(paciente_id, tipo));
+            CREATE TABLE IF NOT EXISTS contacts(id INTEGER PRIMARY KEY, paciente_id TEXT NOT NULL, nome TEXT NOT NULL,
+              parentesco TEXT NOT NULL, telefone TEXT NOT NULL, created_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS devices(id INTEGER PRIMARY KEY, principal_id TEXT NOT NULL, paciente_id TEXT,
+              plataforma TEXT NOT NULL, token TEXT NOT NULL, created_at TEXT NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -109,6 +162,104 @@ class Store:
             "INSERT INTO events(sid,paciente_id,tipo,actor,texto,motivo,created_at) VALUES (?,?,?,?,?,?,?)",
             (sid, patient, kind, actor, text, reason or None, self.instant()),
         )
+        for notice in EVENT_NOTICES.get(kind, []):
+            self._notify(db, sid, patient, *notice)
+
+    def _notify(self, db, sid, patient, audience, kind, title, text):
+        if audience == "paciente" and kind in OPTIONAL_NOTICES:
+            pref = db.execute(
+                "SELECT ativo FROM notification_prefs WHERE paciente_id=? AND tipo=?", (patient, kind)
+            ).fetchone()
+            if pref is not None and not pref["ativo"]:
+                return
+        db.execute(
+            "INSERT INTO notifications(publico,paciente_id,sid,tipo,titulo,texto,created_at) VALUES (?,?,?,?,?,?,?)",
+            (audience, patient, sid, kind, title, text, self.instant()),
+        )
+
+    def _patient_of(self, db, sid):
+        row = db.execute(
+            "SELECT paciente_id FROM events WHERE sid=? AND paciente_id IS NOT NULL ORDER BY id LIMIT 1",
+            (sid,),
+        ).fetchone()
+        return row["paciente_id"] if row else None
+
+    def notifications(self, audience, patients, reader):
+        """`patients=None` means every patient (admin)."""
+        with self.db() as db:
+            rows = db.execute(
+                "SELECT n.*, EXISTS(SELECT 1 FROM notification_reads r WHERE r.notification_id=n.id AND r.leitor=?)"
+                " AS lida FROM notifications n WHERE publico=? ORDER BY id DESC",
+                (reader, audience),
+            )
+            return [dict(r) for r in rows if patients is None or r["paciente_id"] in patients]
+
+    def mark_read(self, nid, audience, patients, reader):
+        if not any(n["id"] == nid for n in self.notifications(audience, patients, reader)):
+            return False
+        with self.db() as db:
+            db.execute("INSERT OR IGNORE INTO notification_reads VALUES (?,?)", (nid, reader))
+        return True
+
+    def preferences(self, patient):
+        with self.db() as db:
+            stored = {
+                r["tipo"]: bool(r["ativo"])
+                for r in db.execute(
+                    "SELECT tipo,ativo FROM notification_prefs WHERE paciente_id=?", (patient,)
+                )
+            }
+        return {kind: stored.get(kind, True) for kind in OPTIONAL_NOTICES}
+
+    def set_preferences(self, patient, values):
+        with self.db() as db:
+            for kind, active in values.items():
+                db.execute(
+                    "INSERT INTO notification_prefs VALUES (?,?,?) ON CONFLICT(paciente_id,tipo) DO UPDATE SET ativo=?",
+                    (patient, kind, int(active), int(active)),
+                )
+        return self.preferences(patient)
+
+    def add_contact(self, patient, body):
+        with self.db() as db:
+            return db.execute(
+                "INSERT INTO contacts(paciente_id,nome,parentesco,telefone,created_at) VALUES (?,?,?,?,?)",
+                (patient, body["nome"], body["parentesco"], body["telefone"], self.instant()),
+            ).lastrowid
+
+    def contacts(self, patient):
+        with self.db() as db:
+            return [
+                dict(r)
+                for r in db.execute("SELECT * FROM contacts WHERE paciente_id=? ORDER BY id", (patient,))
+            ]
+
+    def delete_contact(self, patient, cid):
+        with self.db() as db:
+            return (
+                db.execute("DELETE FROM contacts WHERE id=? AND paciente_id=?", (cid, patient)).rowcount == 1
+            )
+
+    def add_device(self, principal, patient, body):
+        with self.db() as db:
+            return db.execute(
+                "INSERT INTO devices(principal_id,paciente_id,plataforma,token,created_at) VALUES (?,?,?,?,?)",
+                (principal, patient, body["plataforma"], body["token"], self.instant()),
+            ).lastrowid
+
+    def devices(self, principal):
+        with self.db() as db:
+            return [
+                dict(r)
+                for r in db.execute("SELECT * FROM devices WHERE principal_id=? ORDER BY id", (principal,))
+            ]
+
+    def delete_device(self, principal, did):
+        with self.db() as db:
+            return (
+                db.execute("DELETE FROM devices WHERE id=? AND principal_id=?", (did, principal)).rowcount
+                == 1
+            )
 
     def _queued(self, db, version, sid):
         row = db.execute("SELECT body FROM queues WHERE version=?", (version,)).fetchone()
@@ -332,6 +483,15 @@ class Store:
             if result.rowcount != 1:
                 raise ValueError("Evidencia ja revisada ou expirada; registre nova versao para corrigir")
             self._advance_request(db, row["document_id"], "em_analise", "atendido")
+            self._notify(
+                db,
+                row["sid"],
+                self._patient_of(db, row["sid"]),
+                "paciente",
+                "analise_concluida",
+                "Análise do documento concluída",
+                "A análise do seu documento terminou.",
+            )
         return self.evidence(eid)
 
     def _approved(self, db, body):
@@ -410,7 +570,7 @@ class Store:
                     None,
                     "Fila ou politica mudou: nova proposta necessaria",
                 )
-            db.execute(
+            updated = db.execute(
                 "UPDATE proposals SET status=?,opinion=?,error=?,attempts=attempts+1,next_try=? WHERE id=? AND expires>? AND status='processando'",
                 (
                     status,
@@ -421,6 +581,17 @@ class Store:
                     self.clock(),
                 ),
             )
+            if updated.rowcount == 1 and status == "pronta_para_medico":
+                sid = json.loads(row["body"])["solicitacao_id"]
+                self._notify(
+                    db,
+                    sid,
+                    self._patient_of(db, sid),
+                    "profissional",
+                    "proposta_para_revisao",
+                    "Nova proposta para revisão",
+                    "Uma proposta com parecer do tribunal aguarda sua decisão.",
+                )
 
     def due(self):
         self.purge_expired()

@@ -5,6 +5,7 @@ import contextlib
 import csv
 import io
 import os
+import re
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -63,6 +64,29 @@ class ContestInput(Strict):
 
 class ConclusionInput(Strict):
     justificativa: str = Field(min_length=3, max_length=2000)
+
+
+class PreferencesInput(Strict):
+    # Only optional notices; "exame_pedido" is rejected as an extra field (spec 005).
+    documento_recebido: bool | None = None
+    analise_concluida: bool | None = None
+    prioridade_validada: bool | None = None
+
+
+class ContactInput(Strict):
+    nome: str = Field(min_length=2, max_length=200)
+    parentesco: str = Field(min_length=2, max_length=50)
+    telefone: str = Field(pattern=r"^[0-9 ()+-]{8,20}$")
+
+
+class DeviceInput(Strict):
+    plataforma: Literal["ios", "android", "windows"]
+    token: str = Field(min_length=8, max_length=500)
+
+
+def masked_phone(phone):
+    digits = re.sub(r"\D", "", phone)
+    return "*" * (len(digits) - 4) + digits[-4:]
 
 
 class ReferenceVersion(Strict):
@@ -191,6 +215,93 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
             return {"versao": version, "solicitacoes": len(rows)}
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
+
+    def patient_of(principal):
+        if principal.papel != "paciente":
+            raise HTTPException(403, "Operacao restrita ao paciente")
+        return next(iter(principal.pacientes))
+
+    def audience(principal):
+        if principal.papel == "paciente":
+            return "paciente", principal.pacientes
+        return "profissional", None if principal.papel == "admin" else principal.pacientes
+
+    @app.get("/notificacoes")
+    def notifications(principal=principal_dependency):
+        rows = store.notifications(*audience(principal), principal.id)
+        return {
+            "nao_lidas": sum(not r["lida"] for r in rows),
+            "notificacoes": [
+                {
+                    "id": r["id"],
+                    "tipo": r["tipo"],
+                    "titulo": r["titulo"],
+                    "texto": r["texto"],
+                    "solicitacao_id": r["sid"],
+                    "lida": bool(r["lida"]),
+                    "data_hora": r["created_at"],
+                }
+                for r in rows
+            ],
+        }
+
+    @app.post("/notificacoes/{nid}/lida")
+    def mark_read(nid: int, principal=principal_dependency):
+        if not store.mark_read(nid, *audience(principal), principal.id):
+            raise HTTPException(404, "Notificacao nao encontrada")
+        return {"id": nid, "lida": True}
+
+    @app.get("/preferencias/notificacoes")
+    def get_preferences(principal=principal_dependency):
+        return store.preferences(patient_of(principal))
+
+    @app.put("/preferencias/notificacoes")
+    def put_preferences(body: PreferencesInput, principal=principal_dependency):
+        return store.set_preferences(patient_of(principal), body.model_dump(exclude_none=True))
+
+    @app.get("/contatos")
+    def contacts(principal=principal_dependency):
+        return {
+            "contatos": [
+                {
+                    "contato_id": c["id"],
+                    "nome": c["nome"],
+                    "parentesco": c["parentesco"],
+                    "telefone": masked_phone(c["telefone"]),
+                }
+                for c in store.contacts(patient_of(principal))
+            ]
+        }
+
+    @app.post("/contatos", status_code=201)
+    def add_contact(body: ContactInput, principal=principal_dependency):
+        return {"contato_id": store.add_contact(patient_of(principal), body.model_dump())}
+
+    @app.delete("/contatos/{cid}")
+    def delete_contact(cid: int, principal=principal_dependency):
+        if not store.delete_contact(patient_of(principal), cid):
+            raise HTTPException(404, "Contato nao encontrado")
+        return {"contato_id": cid, "removido": True}
+
+    @app.get("/dispositivos")
+    def devices(principal=principal_dependency):
+        return {
+            "dispositivos": [
+                {"dispositivo_id": d["id"], "plataforma": d["plataforma"], "data_hora": d["created_at"]}
+                for d in store.devices(principal.id)
+            ]
+        }
+
+    @app.post("/dispositivos", status_code=201)
+    def add_device(body: DeviceInput, principal=principal_dependency):
+        patient = next(iter(principal.pacientes)) if principal.papel == "paciente" else None
+        return {"dispositivo_id": store.add_device(principal.id, patient, body.model_dump())}
+
+    @app.delete("/dispositivos/{did}")
+    def delete_device(did: int, principal=principal_dependency):
+        if not store.delete_device(principal.id, did):
+            raise HTTPException(404, "Dispositivo nao encontrado")
+        return {"dispositivo_id": did, "removido": True}
 
     @app.get("/solicitacoes/{sid}/historico")
     def history(sid: str, principal=principal_dependency):
