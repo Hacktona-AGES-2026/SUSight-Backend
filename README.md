@@ -32,6 +32,7 @@ uv run --no-sync python tools/verificar_fila_priorizada.py \
 
 A configuração em `examples/preferences-demo.json` contém escores de swing e faixas
 **demonstrativas**, sem validação clínica nem atribuição de percentuais à literatura.
+A política `priorizacao-sem-espera-v1` remove espera de pesos, desempates e travas.
 A hierarquia rígida é aplicada antes da ROR; a base inteira gerou 925 posições e
 passou no verificador oficial. Ver [validação](docs/backend-validation.md).
 
@@ -76,3 +77,14 @@ Detalhes: [tratamento](docs/dataset-treatment.md), [pontuação](docs/queue-scor
 Specs em `specs/001-tribunal-de-ias`, `specs/002-pontuacao-da-fila` e
 `specs/003-tratamento-do-dataset`. Princípios em `specs/constitution.md` e fluxo em
 `docs/sdd/MANUAL.md`. Commits atômicos; PRs para `dev`; merge exige revisão humana.
+
+Análise descritiva ASA × porte, com ASA observado e sensibilidade de duplicatas:
+
+```sh
+uv run --no-sync python -m susight.scoring.analysis \
+  --dataset /caminho/dataset --treated /caminho/tratado --output outputs/analise-nova
+```
+
+Critérios e pesos clínicos permanecem para revisão conforme o
+[roteiro de elicitação](docs/clinical-elicitation.md). BRAN e termo antes do upload
+estão planejados nas specs vinculadas, sem nova chamada de IA nesta entrega.

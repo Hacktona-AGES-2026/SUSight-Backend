@@ -1,6 +1,6 @@
 # Revisão clínica e de regulação — 2026-10-24
 
-Status: requisitos em revisão; implementação pendente.
+Status: retirada da espera e análise descritiva implementadas; revisão clínica e features vinculadas pendentes.
 
 Origem: anotações de conversa clínica transmitidas pelo usuário. Não constituem
 assinatura, confirmação de CRM ou aprovação formal das profissionais mencionadas.
@@ -15,8 +15,9 @@ Conservar datas para acompanhamento, rastreabilidade e validade de evidências.
 Deterioração clínica observada continua distinta do tempo decorrido: mudar a data
 de entrada não cria piora clínica. Empates usam identificação estável.
 
-A implementação atual ainda usa espera. As specs 002 e do tribunal foram revistas;
-planos, tarefas e código anteriores precisam ser adaptados antes da nova aceitação.
+A implementação revisada usa `priorizacao-sem-espera-v1`, sem espera. Planos, tarefas
+e aceitação técnica foram atualizados; ver `backend-validation.md`. As novas escalas
+e faixas clínicas continuam pendentes, com roteiro em `clinical-elicitation.md`.
 Não reutilizar os swings demonstrativos antigos como se fossem pesos clínicos.
 
 ## Insumos relatados e tratamento proposto

@@ -3,7 +3,7 @@
 Issue: Hacktona-AGES-2026/SUSight#6
 Status: em revisão
 
-Revisão de requisitos em 2026-10-24: espera removida por orientação explícita do usuário. Esta revisão ainda exige adaptação do plano, do código e nova aceitação; ver [revisão clínica](../../docs/clinical-review-2026-10-24.md).
+Revisão de requisitos em 2026-10-24: espera removida por orientação explícita do usuário. Retirada da espera implementada e aceita tecnicamente no dataset sintético; demais decisões clínicas continuam pendentes; ver [revisão clínica](../../docs/clinical-review-2026-10-24.md).
 
 ## Contexto
 
@@ -22,7 +22,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 
 1. Cada solicitação ativa é avaliada nos critérios abaixo, todos com escala em que "mais" significa "mais prejudicado por esperar":
    - **Limitação funcional:** nenhuma < leve < moderada < grave.
-   - **ASA:** 1 < 2 < 3 < 4. ASA alto indica paciente mais frágil e sobe a prioridade.
+   - **ASA:** a escala demonstrativa atual usa 1 < 2 < 3 < 4. Essa direção não comprova maior urgência cirúrgica; a relação entre ASA, porte e prioridade está em revisão clínica e deve ser decidida antes de uso real.
    - **Dor:** EVA de 0 a 10.
    - **Comorbidades:** quantidade e gravidade das comorbidades registradas (colunas e texto livre tratados pela issue #5).
    - **Tempo de espera não é critério:** dias em fila, data de entrada e fração do prazo SWALIS não alteram peso, ordenação, desempate ou travas. Permanecem disponíveis para acompanhamento administrativo. Deterioração clínica documentada é distinta do simples decurso do tempo.
@@ -97,7 +97,7 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 
 - Tratamento do dataset: limpeza, deduplicação e extração de sinais do texto livre (issue #5). Esta spec recebe os dados já tratados.
 - O debate dos pares incertos (tribunal, spec 001). Esta spec só marca quais pares são incertos.
-- Elicitação de pesos com médicos ou com a regulação: as preferências vêm da literatura.
+- Validação clínica automática: o sistema não substitui os responsáveis por validar escalas e preferências. A elicitação profissional foi incluída no planejamento autorizado; resultados e aprovação permanecem pendentes.
 - Interface para editar pesos e comparações.
 - Preparo pré-operatório (HbA1c, avaliação pré-anestésica, exames pré-op), que o desafio declara não avaliado.
 
@@ -107,4 +107,4 @@ A exclusão da espera está decidida: sem peso e sem desempate. Permanecem abert
 
 ## Estado da implementação
 
-A implementação do PR consolidado e seus testes correspondem ao modelo anterior, que ainda usa espera. Não atendem à revisão acima. Remover o critério de todas as etapas, atualizar preferências e travas, revisar o plano e repetir a aceitação completa antes de declarar esta revisão implementada. Os resultados anteriores permanecem registrados em `../../docs/backend-validation.md`.
+A política `priorizacao-sem-espera-v1` remove espera de critérios, desempates, pares, travas e contexto externo. A aceitação completa e a repetição do CSV foram executadas; 70 testes passaram. ASA × porte e inventário agregado estão implementados. Novos critérios/pesos clínicos permanecem pendentes; BRAN e termo de upload têm planos vinculados, sem implementação funcional nesta etapa. Ver `../../docs/backend-validation.md`.

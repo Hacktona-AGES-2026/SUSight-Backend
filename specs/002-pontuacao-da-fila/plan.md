@@ -2,7 +2,7 @@
 
 Spec: ./spec.md
 Issue: Hacktona-AGES-2026/SUSight#6
-Status: em revisão
+Status: autorizado pelo usuário para implementação técnica em 2026-10-24; decisões clínicas pendentes
 Data: 2026-10-24
 
 ## Objetivo e limite desta entrega
@@ -11,7 +11,7 @@ Adaptar a pontuação à decisão de que tempo de espera não tem relevância, p
 uma revisão verificável de CID/fatores de risco e ASA × porte e repetir a aceitação
 técnica. A revisão clínica está em [registro de origem](../../docs/clinical-review-2026-10-24.md).
 Este plano substitui o plano anterior; sua elaboração não aprova os pesos nem
-implementa as mudanças. O código ainda corresponde ao modelo com espera.
+implementa as mudanças. A retirada da espera já foi implementada; resultados estão em `../../docs/backend-validation.md`.
 
 BRAN e termo no upload são dependências de outras specs, com entregas descritas
 abaixo. Extração/OCR, escolha de LLM e chamadas reais a Gemini continuam fora desta

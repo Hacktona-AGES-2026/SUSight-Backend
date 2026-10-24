@@ -43,7 +43,7 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
 
 OpenAPI em `/docs` contém campos e limites. Importar a fila selecionando de `fila.json`
-os campos de `QueuePatient`, incluindo `paciente_id`; não enviar critérios ou outros
+os campos de `QueuePatient`, incluindo `paciente_id` e `politica: "priorizacao-sem-espera-v1"`; não enviar critérios ou outros
 campos extras. A ausência de `paciente_id` não concede visibilidade a usuários com
 escopo por paciente. Hierarquia e posições consecutivas são verificadas na importação.
 
@@ -106,3 +106,19 @@ originais, valores livres, nome ou CNS. A validação lexical não é revisão c
 O médico pode discordar do parecer mediante justificativa, respeitando as travas.
 Somente sua decisão explícita e transacional muda a fila. Mudança de versão exige
 nova análise. Reavaliação automática após rejeição continua fora desta feature.
+
+## Migração da política de prioridade
+
+Cada item importado exige a versão `priorizacao-sem-espera-v1`. O banco registra
+a política da fila; bancos anteriores recebem a marca `legado`, sem converter
+pontuações antigas. A leitura não oferece essa fila como vigente; regenerar e
+reimportar com a versão esperada do contador, que não é reiniciado.
+
+Reimportação marca propostas pendentes e prontas como `desatualizada`; pareceres
+anteriores permanecem para auditoria. O retorno de uma análise em andamento não
+reativa a proposta. Aplicar uma decisão exige fila/política vigente, além das
+verificações existentes. Nenhuma trava ou contexto externo usa dias de espera.
+
+BRAN permanece planejado no complemento da spec do tribunal; não foi implementado
+nem testado com um provedor real. O termo antes do upload tem [plano e minuta](upload-term-plan.md);
+registro de metadados não implementa aceite nem recebimento de arquivo.

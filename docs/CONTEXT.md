@@ -26,7 +26,7 @@ A posição sobe conforme o quanto o paciente está sendo prejudicado por espera
 - comorbidades;
 - deterioração durante a espera.
 
-Revisão de 2026-10-24: tempo de espera não terá peso nem desempate. A implementação atual ainda usa esse critério e precisa ser adaptada. CID, fatores de risco, ASA × porte, revisão de indicação com BRAN e termo no upload estão detalhados em [revisão clínica](clinical-review-2026-10-24.md). As anotações relatadas pelo usuário não equivalem a aprovação formal das profissionais.
+Revisão de 2026-10-24: tempo de espera não terá peso nem desempate. A implementação técnica já retira esse critério e usa a política `priorizacao-sem-espera-v1`; as preferências continuam demonstrativas. CID, fatores de risco, ASA × porte, revisão de indicação com BRAN e termo no upload estão detalhados em [revisão clínica](clinical-review-2026-10-24.md). As anotações relatadas pelo usuário não equivalem a aprovação formal das profissionais.
 
 A prioridade manual da regulação é informativa, sem peso na pontuação (spec 002). As preferências de swing e ROR dependem de validação; regras de equidade incluem limite de elevação de 10% por reavaliação e a regra de ouro oncológica. A hierarquia obrigatória antecede a comparação ROR dentro de grupos; a execução completa passou no verificador oficial. Os pesos continuam demonstrativos, conforme `docs/backend-validation.md`.
 

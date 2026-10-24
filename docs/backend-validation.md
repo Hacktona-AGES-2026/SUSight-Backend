@@ -1,5 +1,56 @@
 # Validação técnica — 2026-10-24
 
+## Revisão atual: política sem espera
+
+Implementação autorizada pelo usuário e concluída para a demonstração sintética.
+Política: `priorizacao-sem-espera-v1`.
+
+- **70 testes passaram**, incluindo invariância de espera em preparação, ROR,
+  desempates e travas; fila antiga, reimportação durante chamada, auditoria de
+  parecer antigo e análise ASA × porte. Ruff aprovou análise e formatação.
+- Espera removida de critérios, swings, seleção de pares, desempates, dominância,
+  travas e contexto externo. Datas permanecem para histórico/validade.
+- Duas execuções completas passaram no verificador original (código 0):
+  `outputs/no-wait-20261024-a` e `outputs/no-wait-20261024-b`.
+- Ambas geraram **925 posições**, 16 exclusões rastreáveis, 44 solicitações em
+  grupos suspeitos mantidas para revisão e 103 imputações. CSV, relações, função
+  representativa e decisões foram idênticos entre as execuções. Fontes intactas.
+- Modelo demonstrativo: seis critérios e 12 incrementos. Preferências antigas
+  são rejeitadas; os valores demonstrativos remanescentes não são novos pesos
+  médicos. ASA e critérios de risco continuam para validação clínica.
+- Manifesto de pontuação registra política, hash das preferências/entrada/saídas
+  e retenção limitada pela validade da entrada. API exige política em cada item
+  importado; fila legada não é convertida. Reimportação invalida propostas
+  anteriores, preservando pareceres para auditoria e impedindo aplicação antiga.
+- Análise em `outputs/clinical-analysis-20261024-final`: 925 solicitações ativas,
+  881 na sensibilidade sem suspeitas, 26 sem ASA observado (imputados excluídos
+  da tabela observada), 23 procedimentos e nenhuma ausência de porte/vínculo
+  nessa população. A categoria `especial` do catálogo foi preservada.
+- Relatórios agregam contagens e proporções por porte/especialidade e inventário
+  das evidências das regras existentes. Não calculam pesos, causalidade ou risco
+  individual. A fila não foi alterada pela análise descritiva.
+- **Zero chamadas de IA**; o adaptador de Gemini não foi alterado. BRAN permanece
+  em planejamento e o termo de upload é minuta para revisão do produto.
+
+Artefatos gerados são temporários e privados. Roteiro de decisões clínicas:
+[elicitação](clinical-elicitation.md). Plano de upload: [termo](upload-term-plan.md).
+
+### Reproduzir análise sem chamadas externas
+
+```sh
+uv run --no-sync python tools/acceptance.py \
+  --dataset /caminho/dataset --output-root outputs/sem-espera-novo
+uv run --no-sync python -m susight.scoring.analysis \
+  --dataset /caminho/dataset --treated outputs/sem-espera-novo/tratado \
+  --output outputs/analise-asa-porte-nova
+```
+
+A aplicação do novo modelo clínico depende das decisões de CID/fatores de risco,
+ASA × porte e faixas/comparações revisadas pelos responsáveis. Não se fabrica
+esse aceite como resultado de teste. Aprovação/merge do PR exige pessoa desenvolvedora.
+
+## Histórico anterior à retirada da espera
+
 Escopo: tratamento, pontuação, permissões, retenção e integração da proveniência
 com o tribunal. Não houve chamada real a Gemini nem alteração do adaptador do provedor.
 Upload/OCR e extração automática continuam na feature documental separada.
