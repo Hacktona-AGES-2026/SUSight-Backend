@@ -372,3 +372,15 @@ def test_vote_parsing_ignores_keys_the_model_invents_and_fixes_the_agent_name():
     got = parse_vote("contestacao", raw)
     assert (got.agente, got.veredito, got.evidencias_citadas) == ("contestacao", "contra", ["E1"])
     assert got.sem_comprovacao is False and got.posicao_sugerida is None
+
+
+async def test_agents_see_what_the_document_says_and_the_criteria_it_changed(setup):
+    body = proposal() | {"reavaliacao": {"criterios": {"dor": 8, "asa": 3}, "swalis": "B"}}
+    provider = FakeProvider()
+    await Tribunal(setup, provider).process(setup.create(body))
+    context = provider.contexts[0]
+    shown = context["evidencias"][0]["conteudo"]
+    assert shown["campo"] == "comorbidades" and "Biopsia com resultado positivo" in shown["trecho"]
+    assert context["criterios_apos_o_documento"] == {"dor": 8, "asa": 3}
+    assert context["classe_apos_o_documento"] == "B"
+    assert not any("E1" in str(v) for v in context["evidencias"][0].values())  # ids stay pseudonymised
