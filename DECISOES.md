@@ -1,6 +1,10 @@
 # Decisões do SUSight (Desafio 1 · Priorização Inteligente da Fila Cirúrgica)
 
-Backend do SUSight. Toda a demonstração usa o dataset sintético do desafio (data de referência 23/10/2026). A parametrização do modelo é **demonstrativa e não tem validação clínica**; a justificativa de cada linha do CSV diz isso.
+> **Este documento é o mesmo nos três repositórios do SUSight** (backend, web do médico e app do paciente), porque eles formam um projeto só. A fonte é este arquivo.
+>
+> **Neste repositório (backend):** tratamento do dataset, pontuação (swing weighting + ROR), leitura de exames (OCR), tribunal de IAs e a API que web e app consomem. É onde estão o `fila_priorizada.csv` e o passo a passo para rodar tudo.
+
+Toda a demonstração usa o dataset sintético do desafio (data de referência 23/10/2026). A parametrização do modelo é **demonstrativa e não tem validação clínica**; a justificativa de cada linha do CSV diz isso.
 
 ## Qual abordagem
 
