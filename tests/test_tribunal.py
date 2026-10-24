@@ -295,6 +295,7 @@ def test_blank_medical_name_rejected():
 
 def proposal_reference():
     body = proposal()
+    body.pop("reavaliacao")  # set only by the system when it reads a document, never by a client
     body["evidencias_ids"] = [e["evidencia_id"] for e in body.pop("evidencias")]
     return body
 
@@ -345,7 +346,11 @@ async def test_rejection_stops_returning_after_three_rounds(setup):
 
 def test_queue_keeps_the_patient_name_procedure_and_city_for_the_doctor(tmp_path):
     rows = queue(3)
-    rows[0] |= {"nome": "Pedro Freitas Medeiros", "procedimento": "Herniorrafia inguinal", "municipio": "Porto Alegre"}
+    rows[0] |= {
+        "nome": "Pedro Freitas Medeiros",
+        "procedimento": "Herniorrafia inguinal",
+        "municipio": "Porto Alegre",
+    }
     store = Store(tmp_path / "names.sqlite")
     store.import_queue(validate_queue(rows), 0)
     first = store.queue()[1][0]

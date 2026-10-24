@@ -109,7 +109,14 @@ class Tribunal:
                 known = set(original_ids)
                 proof = any(
                     e["tipo"]
-                    in {"biopsia", "exame_imagem", "pronto_socorro", "internacao", "consulta_reavaliacao"}
+                    in {
+                        "biopsia",
+                        "exame_imagem",
+                        "pronto_socorro",
+                        "internacao",
+                        "consulta_reavaliacao",
+                        "criterio",
+                    }
                     for e in body["evidencias"]
                 )
 

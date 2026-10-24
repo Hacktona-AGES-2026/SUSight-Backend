@@ -93,6 +93,8 @@ class ProposalInput(Strict):
     ordenacao_incerta: bool = False
     evidencias_conflitantes: bool = False
     evidencias: list[Evidence] = Field(default_factory=list, max_length=100)
+    # Criteria, class and score re-read from a document; applied to the patient only if the doctor approves.
+    reavaliacao: dict | None = None
 
     @model_validator(mode="after")
     def eligible(self):
