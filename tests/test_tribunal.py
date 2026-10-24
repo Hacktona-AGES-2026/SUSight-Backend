@@ -2,6 +2,7 @@ import asyncio
 import json
 
 import pytest
+from conftest import approve_in_store, register_http_evidence
 from fastapi.testclient import TestClient
 
 from susight.api import create_app
@@ -78,6 +79,7 @@ class FakeProvider:
 def setup(tmp_path):
     store = Store(tmp_path / "db.sqlite")
     store.import_queue(validate_queue(queue()), 0)
+    approve_in_store(store)
     return store
 
 
@@ -88,7 +90,8 @@ def test_guards_limit_dominance_and_gold():
     rows[18]["dias_em_fila"] = 200
     assert not guard(rows, "20", 18)["liberada"]
     rows = queue()
-    rows[0]["sem_urgencia"] = True
+    for row in rows[:-1]:
+        row["sem_urgencia"] = True
     rows[-1]["oncologico"] = True
     rows[-1]["cid"] = "C509"
     result = guard(rows, "20", 1)
@@ -149,8 +152,9 @@ async def test_failures_persist_warn_and_recover(setup):
 async def test_report_only_cannot_get_evidence_support(setup):
     body = proposal()
     body["evidencias"] = [
-        {"evidencia_id": "E1", "tipo": "relato", "resultado": "relatado", "data": "2026-10-01"}
+        {"evidencia_id": "E2", "tipo": "relato", "resultado": "relatado", "data": "2026-10-01"}
     ]
+    approve_in_store(setup, body["evidencias"][0])
     pid = setup.create(body)
     result = await Tribunal(setup, FakeProvider()).process(pid)
     votes = result["opinion"]["manifestacoes"]
@@ -182,7 +186,8 @@ def test_http_decision_auth_version_and_audit(tmp_path):
         client.headers["Authorization"] = "Bearer " + TOKEN
         assert client.get("/propostas/missing/parecer").status_code == 404
         assert client.put("/fila", json={"versao_esperada": 0, "pacientes": queue()}).status_code == 200
-        response = client.post("/propostas", json=proposal())
+        register_http_evidence(client)
+        response = client.post("/propostas", json=proposal_reference())
         assert response.status_code == 201
         pid = response.json()["proposta_id"]
         assert (
@@ -213,8 +218,8 @@ def test_http_decision_auth_version_and_audit(tmp_path):
         )
         with app.state.store.db() as db:
             decision = dict(db.execute("SELECT * FROM decisions").fetchone())
-        assert decision["actor"] == "Medico teste" and decision["created_at"]
-        assert client.post("/propostas", json=proposal()).status_code == 409
+        assert decision["actor"] == "admin-demo" and decision["created_at"]
+        assert client.post("/propostas", json=proposal_reference()).status_code == 409
 
 
 def test_no_unconfigured_authenticated_api(tmp_path):
@@ -250,7 +255,8 @@ def test_doctor_can_disagree_with_consultative_opinion(tmp_path):
     with TestClient(app) as client:
         client.headers["Authorization"] = "Bearer " + TOKEN
         client.put("/fila", json={"versao_esperada": 0, "pacientes": queue()})
-        pid = client.post("/propostas", json=proposal()).json()["proposta_id"]
+        register_http_evidence(client)
+        pid = client.post("/propostas", json=proposal_reference()).json()["proposta_id"]
         client.post(f"/propostas/{pid}/tribunal")
         path = f"/propostas/{pid}/decisao"
         assert client.post(path, json={"medico": "Medico teste", "acao": "aprovar"}).status_code == 422
@@ -283,3 +289,9 @@ def test_blank_medical_name_rejected():
 
     with pytest.raises(ValueError):
         Decision(medico="   ", acao="aprovar")
+
+
+def proposal_reference():
+    body = proposal()
+    body["evidencias_ids"] = [e["evidencia_id"] for e in body.pop("evidencias")]
+    return body

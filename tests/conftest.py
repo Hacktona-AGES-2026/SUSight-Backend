@@ -73,3 +73,64 @@ def dataset(tmp_path):
 
 def read_lines(path):
     return [json.loads(line) for line in Path(path).read_text().splitlines()]
+
+
+def approve_in_store(store, evidence=None, sid="20"):
+    from susight.tribunal.models import DocumentInput, EvidenceRegistration
+
+    evidence = evidence or {
+        "evidencia_id": "E1",
+        "tipo": "biopsia",
+        "resultado": "positivo",
+        "data": "2026-10-01",
+    }
+    doc = DocumentInput(
+        solicitacao_id=sid,
+        sha256="a" * 64,
+        tipo_mime="application/pdf",
+        paginas=1,
+        tamanho_bytes=100,
+        sintetico=True,
+    )
+    did = store.register_document(doc.model_dump(), "uploader-test")
+    body = EvidenceRegistration(
+        evidencia=evidence,
+        documento_id=did,
+        pagina=1,
+        trecho="Biopsia com resultado positivo registrado no documento sintetico.",
+        campo="comorbidades",
+        valor="Condicao explicitamente documentada",
+        confianca="alta",
+    )
+    eid = store.register_evidence(body.model_dump(), "uploader-test")
+    store.review_evidence(eid, "aprovar", "medico-test", "Conferido com documento sintetico de teste")
+    return eid, did
+
+
+def register_http_evidence(client):
+    doc = client.post(
+        "/documentos",
+        json={
+            "solicitacao_id": "20",
+            "sha256": "a" * 64,
+            "tipo_mime": "application/pdf",
+            "paginas": 1,
+            "tamanho_bytes": 100,
+            "sintetico": True,
+        },
+    )
+    assert doc.status_code == 201, doc.text
+    body = {
+        "evidencia": {"evidencia_id": "E1", "tipo": "biopsia", "resultado": "positivo", "data": "2026-10-01"},
+        "documento_id": doc.json()["documento_id"],
+        "pagina": 1,
+        "trecho": "Biopsia documentada no caso sintetico.",
+        "campo": "comorbidades",
+        "valor": "Condicao registrada",
+        "confianca": "alta",
+    }
+    assert client.post("/evidencias", json=body).status_code == 201
+    response = client.post(
+        "/evidencias/E1/revisao", json={"acao": "aprovar", "justificativa": "Conferido com fonte sintetica"}
+    )
+    assert response.status_code == 200, response.text

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from susight.priority import priority_group
+
 from .models import QueuePatient
 
 
@@ -16,6 +18,8 @@ def validate_queue(queue):
         for b in rows[i + 1 :]
     ):
         raise ValueError("Fila de entrada viola regra de ouro")
+    if any(priority_group(a) > priority_group(b) for i, a in enumerate(rows) for b in rows[i + 1 :]):
+        raise ValueError("Fila de entrada viola hierarquia de prioridade")
     return rows
 
 
@@ -54,10 +58,16 @@ def guard(queue, sid, target):
         for b in candidate[i + 1 :]
     ):
         return {"liberada": False, "posicao": old, "travas": reasons + ["regra_de_ouro"]}
+    if any(
+        priority_group(a) > priority_group(b) for i, a in enumerate(candidate) for b in candidate[i + 1 :]
+    ):
+        return {"liberada": False, "posicao": old, "travas": reasons + ["hierarquia_regra_de_ouro"]}
     if target < old:
         crossed = [r for r in rest if target <= r["posicao"] < old]
         if any(
-            r["pontuacao"] > patient["pontuacao"] + 1e-7 and r["dias_em_fila"] > patient["dias_em_fila"]
+            priority_group(r) == priority_group(patient)
+            and r["pontuacao"] > patient["pontuacao"] + 1e-7
+            and r["dias_em_fila"] > patient["dias_em_fila"]
             for r in crossed
         ):
             return {"liberada": False, "posicao": old, "travas": reasons + ["prioridade_maior_e_mais_espera"]}

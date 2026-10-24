@@ -9,6 +9,7 @@ from susight.dataset.core import normalize
 
 from .guards import guard
 from .models import AGENTS, Vote
+from .store import EvidenceUnavailable
 
 
 def pseudonym(sid):
@@ -59,10 +60,14 @@ class Tribunal:
 
     async def process(self, pid):
         async with self.semaphore:
-            if not self.store.claim(pid):
-                return self.store.get(pid)
-            p = self.store.get(pid)
             try:
+                if not self.store.claim(pid):
+                    return self.store.get(pid)
+                p = self.store.get(pid)
+            except KeyError:
+                return {"id": pid, "status": "expirada", "attempts": 0, "opinion": None}
+            try:
+                self.store.live_evidence(p["body"])
                 version, queue = self.store.queue()
                 body = p["body"]
                 if version != body["versao_fila"]:
@@ -118,6 +123,8 @@ class Tribunal:
                             vote.justificativa = (
                                 "Nao ha exame ou evento clinico documentado que comprove a mudanca."
                             )
+                    if vote.veredito in {"a_favor", "ajustar"} and not vote.evidencias_citadas:
+                        raise ValueError("Voto favoravel ou ajuste sem referencia de evidencia")
                     vote.evidencias_citadas = [original_ids[e] for e in vote.evidencias_citadas]
                     normalized.append(vote)
                 opinion = consolidate_votes(normalized)
@@ -139,10 +146,13 @@ class Tribunal:
                         "versao_fila": version,
                     }
                 )
+                self.store.live_evidence(body)
                 if self.store.queue()[0] != version:
                     self.store.finish(pid, "desatualizada", error="Fila mudou durante analise")
                 else:
                     self.store.finish(pid, "pronta_para_medico", opinion=opinion)
+            except (KeyError, EvidenceUnavailable):
+                self.store.finish(pid, "invalidada", error="Referencia expirada ou sem aprovacao valida")
             except Exception:  # noqa: BLE001 -- provider failures must remain durable and retriable
                 attempts = p["attempts"] + 1
                 self.store.finish(
@@ -154,7 +164,10 @@ class Tribunal:
             except BaseException:
                 self.store.finish(pid, "aguardando_tribunal", error="Processamento interrompido", delay=5)
                 raise
-            return self.store.get(pid)
+            try:
+                return self.store.get(pid)
+            except KeyError:
+                return {"id": pid, "status": "expirada", "attempts": p["attempts"], "opinion": None}
 
     async def worker(self):
         while True:
