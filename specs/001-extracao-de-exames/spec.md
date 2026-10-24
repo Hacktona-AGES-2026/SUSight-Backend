@@ -17,6 +17,10 @@ O MVP é demonstrado e testado com documentos inteiramente sintéticos, sem dado
 
 Embora a issue também mencione tempo de espera e deterioração, nesta feature esses dados são obtidos da fila e de seu histórico, e não extraídos do documento.
 
+### Revisão de upload — 2026-10-24
+
+Antes do envio, apresentar termo legível com finalidade da extração, dados usados, acesso, guarda e eventual serviço externo. Informar que extração não altera a fila sem aprovação profissional. Exigir aceite explícito, sem seleção prévia, registrando versão, responsável, data e hora; sem aceite, não receber nem processar o arquivo e orientar sobre o canal assistencial alternativo. O texto final e o canal alternativo dependem de definição do produto. O aceite não autoriza uso de dados reais no MVP sintético. Esta revisão é requisito pendente de implementação; ver [registro clínico](../../docs/clinical-review-2026-10-24.md).
+
 ## Comportamento esperado
 
 1. O paciente ou o médico envia um único documento digitado por envio, em PDF, JPEG ou PNG, vinculado à solicitação cirúrgica correspondente. PDFs podem conter texto selecionável ou páginas digitalizadas. O limite é de 10 MiB por arquivo e 10 páginas por PDF; cada imagem corresponde a uma página. O sistema registra a origem do envio e a referência do documento, coletando apenas os dados necessários para associar e revisar a extração.
@@ -65,6 +69,8 @@ Embora a issue também mencione tempo de espera e deterioração, nesta feature 
 
 ## Critérios de aceite
 
+- [ ] Antes do envio, o termo informa finalidade e condições aplicáveis; aceite não pré-selecionado registra versão e autoria. Ausência de aceite impede recebimento/processamento, com orientação sobre canal alternativo. Aceite não altera a fila nem aprova evidências.
+
 - [ ] Um PDF e uma imagem legíveis, enviados pelo paciente ou pelo médico, podem ser associados à solicitação e gerar uma proposta de extração.
 - [ ] Dois documentos de layouts distintos que expressem as mesmas informações preenchem o mesmo esquema de sete campos, sem exigir posição fixa dos conteúdos.
 - [ ] O resultado sempre contém limitação funcional, ASA, dor, questões socioeconômicas, comorbidades, tipo e data do documento, inclusive quando seus valores forem `null`.
@@ -105,7 +111,7 @@ Embora a issue também mencione tempo de espera e deterioração, nesta feature 
 
 ## Questões em aberto
 
-Nenhuma decisão de escopo do MVP pendente. As oito questões foram substituídas pelas recomendações explícitas acima. Ferramentas de leitura, modelo e provedor permanecem decisões do futuro plano, conforme o escopo desta entrega; nenhum deles foi escolhido nesta spec.
+Na revisão de 2026-10-24, permanecem pendentes o texto final do termo de upload e o canal assistencial alternativo. As decisões anteriores de extração continuam abaixo. As oito questões foram substituídas pelas recomendações explícitas acima. Ferramentas de leitura, modelo e provedor permanecem decisões do futuro plano, conforme o escopo desta entrega; nenhum deles foi escolhido nesta spec.
 
 A preparação do conjunto de teste, a conferência dos termos de eventual serviço externo e a verificação de acesso, mascaramento e expiração continuam sendo condições de aceitação a executar. A definição de um padrão recomendado não comprova que esses controles já estejam implementados ou testados.
 

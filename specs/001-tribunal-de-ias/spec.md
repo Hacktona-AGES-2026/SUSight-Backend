@@ -15,11 +15,11 @@ O tribunal é consultivo. Quem decide é o médico (constituição, princípios 
 2. A proposta chega ao tribunal com: paciente, posição atual, posição proposta, critérios que motivaram a mudança e as evidências (eventos clínicos e trechos de laudo ou exame).
 3. Três agentes, cada um movido por um LLM real, dão cada um uma única manifestação, sem réplica. Não existe resposta simulada: todo parecer vem de uma análise feita de fato.
    - **Evidências:** argumenta a favor da mudança e cita as evidências usadas.
-   - **Contestação:** argumenta contra e aponta o que falta confirmar.
+   - **Contestação:** questiona a mudança e a sustentação da indicação cirúrgica atual, usando BRAN: benefícios esperados, riscos, alternativas documentadas e consequências de não realizar o procedimento. Aponta evidência ausente ou conflitante para revisão médica, sem concluir por conta própria que a cirurgia é desnecessária. Ausência de documentação não comprova ausência de indicação.
    - **Equidade e regras:** confere a proposta contra os limites de equidade e o efeito sobre os pacientes que seriam ultrapassados.
 4. Cada agente emite um veredito: `a_favor`, `contra` ou `ajustar`. Quem votar `ajustar` informa a posição que considera adequada.
 5. O sistema consolida as três manifestações em um parecer legível para o médico, com a recomendação (aprovar, ajustar ou negar) e a justificativa em português simples, sem alarme. A recomendação segue a maioria dos votos (`a_favor` → aprovar, `contra` → negar, `ajustar` → ajustar). Quando há voto vencido, ele aparece em destaque no parecer. Quando os três votos são diferentes, a recomendação é ajustar.
-6. As travas rígidas são aplicadas por regra determinística, fora do tribunal: a regra de ouro oncológica, o limite de elevação por reavaliação e a regra de não passar à frente de quem tem prioridade maior e mais espera. Nenhum veredito do tribunal pode produzir uma proposta que viole essas travas. Se a proposta violar, ela é barrada e o parecer registra o motivo.
+6. As travas rígidas são aplicadas por regra determinística, fora do tribunal: a regra de ouro oncológica, o limite de elevação por reavaliação e a hierarquia de prioridade definida na spec 002, sem preferência por tempo de espera. Nenhum veredito do tribunal pode produzir uma proposta que viole essas travas. Se a proposta violar, ela é barrada e o parecer registra o motivo.
 7. A proposta com o parecer segue para o médico. Nada muda na fila antes da aprovação dele.
 8. Relato do paciente sozinho (sem exame ou evento clínico) não sustenta o veredito `a_favor` do agente de Evidências; o parecer destaca a ausência de comprovação.
 9. O parecer completo (as três manifestações, os vereditos e a recomendação) fica guardado e é vinculado à proposta, para consulta e auditoria.
@@ -40,9 +40,15 @@ O valor do limite de elevação por reavaliação vem da spec de pontuação da 
 
 As recomendações definem comportamento esperado. Sua inclusão não comprova implementação de expiração, autorização por paciente, validação semântica de linguagem clínica ou execução de um caso real no provedor.
 
+### Revisão clínica de 2026-10-24
+
+O papel ampliado de Contestação está em revisão e ainda não foi implementado nem testado. Mantêm-se três agentes e o acionamento por caso incerto/conflitante, sem varredura automática de toda a fila. Suspeita de indicação inadequada gera pendência de revisão; não implica cancelar, excluir ou reposicionar uma solicitação por voto. A decisão profissional e sua justificativa continuam obrigatórias. BRAN organiza perguntas, sem produzir pontuação. Ver [registro e referências](../../docs/clinical-review-2026-10-24.md).
+
 ## Critérios de aceite
 
 - [ ] O tribunal é acionado para propostas com pares incertos ou evidências conflitantes; a fila inicial é gerada sem chamadas de IA.
+- [ ] Contestação distingue evidência ausente de indicação inadequada, registra as quatro perguntas BRAN e encaminha dúvidas ao médico; nenhuma solicitação é excluída automaticamente.
+- [ ] Alterar apenas o tempo de espera não modifica a decisão das travas.
 - [ ] Cada caso gera exatamente três manifestações, uma por agente, cada uma com veredito e justificativa.
 - [ ] A recomendação final é uma de: aprovar, ajustar ou negar, e segue a maioria dos votos.
 - [ ] Com votos divididos, o voto vencido aparece em destaque; com três votos diferentes, a recomendação é ajustar.

@@ -1,3 +1,5 @@
+> Revisão pendente em 2026-10-24: este documento descreve a implementação anterior. A spec revisada remove espera da pontuação, dos desempates e das travas. Adaptar este documento e revalidar preferências antes de implementar; ver `../../docs/clinical-review-2026-10-24.md`.
+
 # Tarefas: Pontuação da fila
 
 Plano: ./plan.md

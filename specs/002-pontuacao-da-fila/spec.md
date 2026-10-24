@@ -3,6 +3,8 @@
 Issue: Hacktona-AGES-2026/SUSight#6
 Status: em revisão
 
+Revisão de requisitos em 2026-10-24: espera removida por orientação explícita do usuário. Esta revisão ainda exige adaptação do plano, do código e nova aceitação; ver [revisão clínica](../../docs/clinical-review-2026-10-24.md).
+
 ## Contexto
 
 A fila precisa ser ordenada pelo quanto cada paciente é prejudicado por esperar, de forma justa e explicável. Hoje a prioridade manual da regulação é ruidosa e raramente revisada.
@@ -23,7 +25,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
    - **ASA:** 1 < 2 < 3 < 4. ASA alto indica paciente mais frágil e sobe a prioridade.
    - **Dor:** EVA de 0 a 10.
    - **Comorbidades:** quantidade e gravidade das comorbidades registradas (colunas e texto livre tratados pela issue #5).
-   - **Tempo de espera:** dias em fila divididos pelo prazo máximo da classe SWALIS estimada do paciente (A1 = 15, A2 = 21, B = 60, C = 180, D = 360 dias). Valor acima de 1 significa prazo estourado. A classe é estimada a partir do CID, da dor, da limitação e dos eventos clínicos, com a regra registrada no `DECISOES.md`.
+   - **Tempo de espera não é critério:** dias em fila, data de entrada e fração do prazo SWALIS não alteram peso, ordenação, desempate ou travas. Permanecem disponíveis para acompanhamento administrativo. Deterioração clínica documentada é distinta do simples decurso do tempo.
    - **Deterioração durante a espera:** sinais de piora nos eventos clínicos (PS, internação, progressão em imagem, reavaliação com piora, relato de piora).
    - **Questão socioeconômica:** distância até o hospital (maior distância, maior prejuízo).
 2. No tratamento do dataset de referência, um valor ausente num critério não é tratado como zero. Ele recebe a mediana desse critério entre as solicitações da mesma especialidade, e a solicitação fica marcada como "dado incompleto". Quando um par incerto envolve um valor imputado, isso é informado ao tribunal. Essa convenção não preenche campos ausentes da extração documental: eles permanecem `null`, como definido em `specs/001-extracao-de-exames/spec.md` (PR #7), até revisão ou tratamento específico aprovado.
@@ -49,8 +51,8 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 
 12. **Regra de ouro:** nenhum paciente com CID iniciado por `C` (normalizado, sem depender da flag) fica abaixo de um paciente sem urgência clínica. A definição de "sem urgência clínica" é no mínimo tão rigorosa quanto a do `verificar_fila_priorizada.py`.
 13. **Limite de elevação por reavaliação:** depois da fila inicial, uma reavaliação não sobe o paciente mais do que 10% do tamanho da fila ativa de uma vez (arredondado para baixo). A passagem pelo tribunal não dispensa esse limite. A regra de ouro prevalece sobre ele quando um CID `C*` validado exigir subida maior; uma biópsia positiva com CID ainda não `C*` gera revisão clínica e não reescreve o diagnóstico nem aciona silenciosamente essa exceção.
-14. **Não ultrapassar quem tem prioridade maior e mais espera:** um paciente não passa à frente de outro que tenha, ao mesmo tempo, pontuação de prioridade maior e mais dias de espera.
-15. Nenhum peso compensa a precedência rígida. Pontuação maior e mais espera impedem ultrapassagem dentro do mesmo grupo; entre grupos prevalece a hierarquia. A justificativa distingue precedência rígida de comparação ROR.
+14. **Retirada da trava dependente de espera:** a regra anterior de prioridade maior combinada com mais dias de espera foi retirada. A ordenação respeita a hierarquia, as relações necessárias da ROR e o limite de elevação, sem utilizar antiguidade para dar preferência.
+15. Nenhum peso compensa a precedência rígida. Entre grupos prevalece a hierarquia. Empates remanescentes usam identificação estável da solicitação, sem data de entrada ou dias de espera. A justificativa distingue precedência rígida de comparação ROR.
 
 ### Saída
 
@@ -60,7 +62,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 ### Recomendações adotadas para o MVP
 
 - **Escopo:** executar demonstração e avaliação apenas no dataset sintético. Separar parametrização demonstrativa de preferências validadas, com indicação legível no CSV e nos relatórios. Não apresentar a fila como recomendação clínica pronta para uso real.
-- **Pesos e fontes:** receber faixas e comparações explicitamente documentadas, com escala mínima/máxima de cada critério, data, versão, fonte e responsável pela interpretação. Pesos de swing dependem da amplitude dos critérios. Não atribuir percentuais a SWALIS, WCWL ou CPAC sem apoio identificado; SWALIS não é, por si só, uma tabela de pesos para estes sete critérios. Quando a fonte não sustentar um número, manter a premissa rotulada como demonstrativa para revisão, sem inventar validação bibliográfica.
+- **Pesos e fontes:** receber faixas e comparações explicitamente documentadas, com escala mínima/máxima de cada critério, data, versão, fonte e responsável pela interpretação. Pesos de swing dependem da amplitude dos critérios. Não atribuir percentuais a SWALIS, WCWL ou CPAC sem apoio identificado; SWALIS não é, por si só, uma tabela de pesos para os critérios ativos. Quando a fonte não sustentar um número, manter a premissa rotulada como demonstrativa para revisão, sem inventar validação bibliográfica.
 - **Comportamento padrão:** calcular todas as relações entre vizinhos da fila final. Pares mais distantes só recebem classificação quando efetivamente avaliados. Usar nomes de relações e motivos de revisão; não adotar o exemplo "0,2" como limiar de incerteza sem definição e validação de uma medida correspondente.
 - **Critérios clínicos:** ASA 1–4 é o domínio do dataset, não uma autorização para reduzir classes incompatíveis extraídas de documentos. Dor sem escala explícita, comorbidade não confirmada, dado ilegível e categorização funcional inferida ficam para revisão. As adaptações de SWALIS, gravidade de comorbidades e deterioração são registradas como premissas técnicas e precisam de validação antes de uso real.
 - **Imputação:** no dataset, usar mediana da especialidade sobre observações válidas de canônicas ativas, sem cascata; em categorias ordinais e EVA inteira, usar o elemento central superior. Sem população válida, manter pendência. Nunca usar mediana para alterar CID, comprovar ausência de urgência ou converter um campo documental `null` em evidência observada.
@@ -72,10 +74,10 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 
 ## Critérios de aceite
 
-- [ ] Todos os sete critérios são calculados para cada solicitação ativa, com escala em que "mais" significa "mais prejudicado".
+- [ ] Os seis critérios restantes são representados para cada solicitação ativa, com premissas de escala identificadas e pendências clínicas explícitas.
 - [ ] Valores ausentes recebem a mediana da especialidade e a solicitação fica marcada como "dado incompleto".
 - [ ] A prioridade manual da regulação não altera a ordem: trocar seu valor mantém a mesma fila.
-- [ ] O tempo de espera é calculado como fração do prazo SWALIS da classe estimada, e a regra de estimativa da classe está registrada.
+- [ ] Alterar somente dias de espera, data de entrada ou razão de prazo SWALIS, preservando os eventos clínicos e sua validade, mantém pontuação, relações ROR, posições e decisões das travas, inclusive em empates.
 - [ ] Uma reavaliação nunca sobe um paciente mais de 10% da fila ativa, exceto quando a regra de ouro exige.
 - [ ] As restrições do swing weighting e as comparações de referência estão registradas com a fonte de cada uma.
 - [ ] As comparações de referência são respeitadas pela ordem final.
@@ -83,7 +85,7 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 - [ ] Cada par de vizinhos é classificado como ordem necessária, empate necessário ou incerto por reversibilidade estrita, sem percentual de probabilidade clínica presumido.
 - [ ] A ordem final respeita a hierarquia e as ordens necessárias dentro dos grupos; diferenças numéricas de ROR entre grupos não são apresentadas como prioridade superior.
 - [ ] O arquivo gerado passa no `verificar_fila_priorizada.py` sem erros (formato e regra de ouro).
-- [ ] Dentro de cada grupo, nenhum paciente ultrapassa outro com pontuação maior e mais espera; entre grupos prevalece a precedência rígida.
+- [ ] Nenhuma trava de prioridade utiliza espera; entre grupos prevalece a precedência rígida e dentro deles são respeitadas as relações necessárias da ROR.
 - [ ] Toda linha tem justificativa legível em português do Brasil, sem diagnóstico.
 - [ ] Rodar duas vezes com os mesmos dados e as mesmas restrições produz a mesma fila.
 - [ ] A ausência na extração documental continua `null` e rastreável; a imputação do dataset não é apresentada como valor documentado.
@@ -101,8 +103,8 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 
 ## Questões em aberto
 
-Nenhuma decisão de escopo do MVP pendente. O padrão avalia todos os vizinhos; o plano detalha a escolha reprodutível da função representativa e eventual ampliação da janela. Revisão das fontes, validação das escalas e conferência do CSV completo continuam condições de aceitação. Recomendações de escopo não são validação dos pesos nem autorização para publicar uma fila incompatível.
+A exclusão da espera está decidida: sem peso e sem desempate. Permanecem abertas a representação explícita de CID/fatores de risco, a relação ASA × porte e a elicitação das novas faixas de swing. A ordem relatada câncer → cardiovascular → trauma e a menor prioridade atribuída a condições M não são uma regra universal validada. Ver a revisão clínica vinculada acima. Não renormalizar automaticamente os pesos demonstrativos antigos e apresentá-los como preferências médicas.
 
 ## Estado da implementação
 
-Implementação e testes incluídos no PR consolidado. Evidências e critérios de aceitação ainda pendentes estão em `../../docs/backend-validation.md`; não declarar validação clínica nem aceitação da base completa antes de resolver essas pendências.
+A implementação do PR consolidado e seus testes correspondem ao modelo anterior, que ainda usa espera. Não atendem à revisão acima. Remover o critério de todas as etapas, atualizar preferências e travas, revisar o plano e repetir a aceitação completa antes de declarar esta revisão implementada. Os resultados anteriores permanecem registrados em `../../docs/backend-validation.md`.

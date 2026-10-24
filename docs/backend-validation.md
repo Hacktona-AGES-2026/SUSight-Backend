@@ -4,6 +4,10 @@ Escopo: tratamento, pontuação, permissões, retenção e integração da prove
 com o tribunal. Não houve chamada real a Gemini nem alteração do adaptador do provedor.
 Upload/OCR e extração automática continuam na feature documental separada.
 
+## Limite após a revisão de requisitos
+
+Os resultados abaixo correspondem ao modelo anterior à orientação clínica recebida em 2026-10-24. Esse modelo inclui espera na pontuação, no desempate e em travas. Os 62 testes e o CSV aceito não comprovam atendimento ao novo requisito de remover a espera. A revisão está em [registro clínico](clinical-review-2026-10-24.md) e requer adaptação e nova aceitação.
+
 ## Evidências executadas
 
 - **62 testes automatizados passaram** localmente; análise e formatação Ruff aprovadas.
