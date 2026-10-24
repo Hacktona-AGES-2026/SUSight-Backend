@@ -30,7 +30,6 @@ def test_preparation_and_ror_ignore_administrative_wait(dataset, tmp_path):
     for row in rows:
         row["dias_em_fila"] = 10000 - row["dias_em_fila"]
         row["data_entrada_fila"] = "2000-01-01"
-        row["swalis"] = "A1"
     changed = ROR(list(reversed(rows)), config)
     second = order_queue(list(reversed(rows)), changed)
     assert [r["solicitacao_id"] for r in first[0]] == [r["solicitacao_id"] for r in second[0]]

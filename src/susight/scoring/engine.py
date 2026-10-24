@@ -18,7 +18,7 @@ from scipy.optimize import linprog
 from susight.artifacts import protect, retention
 from susight.dataset.core import LIMITATIONS, RULES
 from susight.policy import POLICY_VERSION
-from susight.priority import priority_group
+from susight.priority import hierarchy_origin, priority_group
 
 CRITERIA = ["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"]
 TOL = 1e-7
@@ -311,7 +311,7 @@ class ROR:
                 "b_possivel": gb < ga,
                 "incerto": False,
                 "empate_necessario": False,
-                "origem": "hierarquia_regra_de_ouro",
+                "origem": hierarchy_origin(ga, gb),
             }
         diff = self.features[a] - self.features[b]
         minimum = float(self.solve(diff).fun)
@@ -354,7 +354,7 @@ def order_queue(rows, model):
             if priority_group(a) != priority_group(b):
                 if priority_group(a) < priority_group(b):
                     edges[sa].add(sb)
-                    notes[sa].append("hierarquia_regra_de_ouro")
+                    notes[sa].append(hierarchy_origin(priority_group(a), priority_group(b)))
                 continue
             if abs(scores[sa] - scores[sb]) <= TOL and not np.array_equal(
                 model.features[sa], model.features[sb]
@@ -495,9 +495,9 @@ def score_queue(input_dir, preferences_path, output_dir):
             ],
         )
         decisions = (folder / "DECISOES.md").read_text() + "\n# Decisões de pontuação\n\n"
-        decisions += "SWALIS é uma adaptação técnica das descrições do desafio: A1 para CID urgente ou oncologia com evento de piora durante espera; A2 para CID C* ou biópsia positiva; B para EVA >=7, limitação grave ou piora; C para EVA >=4 ou limitação moderada; D para demais. A classe e o prazo nao dao preferencia temporal. Exige revisão clínica.\n"
+        decisions += "SWALIS é uma adaptação técnica das descrições do desafio: A1 para CID urgente ou oncologia com evento de piora durante espera; A2 para CID C* ou biópsia positiva; B para EVA >=7, limitação grave ou piora; C para EVA >=4 ou limitação moderada; D para demais. A classe ordena o grupo protegido (A1 antes de A2, B, C e D); o prazo e a espera nao dao preferencia temporal. Exige revisão clínica.\n"
         decisions += "Comorbidades: HAS, DM e obesidade =1; cardiopatia e DPOC =2. Deterioração: internação=2, demais eventos documentados=1, relato=0.25. São aproximações demonstrativas, não escalas clínicas validadas.\n"
-        decisions += "Hierarquia antes da ROR: grupo protegido antes de sem urgencia. ROR so se compara dentro do grupo. Espera nao participa de pesos, desempates, pares ou travas; desempate final por ID estavel. Comparacoes entre grupos sao precedencias, nao diferencas aditivas.\n"
+        decisions += "Hierarquia antes da ROR: grupo protegido antes de sem urgencia e, dentro dele, classe SWALIS A1, A2, B, C, D. ROR so se compara dentro da mesma classe. Espera nao participa de pesos, desempates, pares ou travas; desempate final por ID estavel. Comparacoes entre grupos sao precedencias, nao diferencas aditivas.\n"
         decisions += "Nós marginais 0, 0.5 e 1 nas escalas explícitas. Incerto exige reversão estrita; empate necessário é separado. Travas conflitantes impedem publicação.\n"
         decisions += "Preferências e fontes:\n```json\n" + prefs.model_dump_json(indent=2) + "\n```\n"
         (staging / "DECISOES.md").write_text(decisions)
