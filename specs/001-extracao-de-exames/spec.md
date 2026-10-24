@@ -108,3 +108,8 @@ Embora a issue também mencione tempo de espera e deterioração, nesta feature 
 Nenhuma decisão de escopo do MVP pendente. As oito questões foram substituídas pelas recomendações explícitas acima. Ferramentas de leitura, modelo e provedor permanecem decisões do futuro plano, conforme o escopo desta entrega; nenhum deles foi escolhido nesta spec.
 
 A preparação do conjunto de teste, a conferência dos termos de eventual serviço externo e a verificação de acesso, mascaramento e expiração continuam sendo condições de aceitação a executar. A definição de um padrão recomendado não comprova que esses controles já estejam implementados ou testados.
+
+## Referências de compatibilidade
+
+- [Declaração da ASA sobre a classificação de estado físico](https://doi.org/10.1097/ao9.0000000000000002): referência para preservar a notação que conste no documento, sem transformar essa classificação em prioridade cirúrgica ou inferi-la automaticamente.
+- [Termos adicionais da API Gemini](https://ai.google.dev/gemini-api/terms): exemplo de termos que precisam ser conferidos antes de selecionar um fornecedor. A oferta gratuita não autoriza envio de informações sensíveis; os termos também restringem uso clínico. A referência não escolhe o provedor desta feature nem autoriza uso com pacientes reais.
