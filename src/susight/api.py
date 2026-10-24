@@ -139,6 +139,26 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
 
+    @app.get("/solicitacoes/{sid}/historico")
+    def history(sid: str, principal=principal_dependency):
+        # Permission comes from the event's patient link: the trail outlives the imported queue.
+        events = store.history(sid)
+        if not events or not principal.permits({"paciente_id": events[0]["paciente_id"]}):
+            raise HTTPException(404, "Historico nao encontrado")
+        return {
+            "solicitacao_id": sid,
+            "eventos": [
+                {
+                    "tipo": e["tipo"],
+                    "texto": e["texto"],
+                    "responsavel": e["actor"],
+                    "motivo": e["motivo"],
+                    "data_hora": e["created_at"],
+                }
+                for e in events
+            ],
+        }
+
     @app.post("/documentos", status_code=201)
     def register_document(body: DocumentInput, principal=principal_dependency):
         permit_case(body.solicitacao_id, principal)
