@@ -39,6 +39,9 @@ class Store:
               reason TEXT, reviewed_at TEXT, expires REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS counters(name TEXT PRIMARY KEY, value INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS queue_imports(version INTEGER PRIMARY KEY, actor TEXT NOT NULL, created_at TEXT NOT NULL, expires REAL NOT NULL);
+            -- Audit trail (spec 004): never expires and never holds document content, name or CNS.
+            CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, sid TEXT NOT NULL, paciente_id TEXT,
+              tipo TEXT NOT NULL, actor TEXT NOT NULL, texto TEXT NOT NULL, motivo TEXT, created_at TEXT NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -91,6 +94,20 @@ class Store:
             db.execute("DELETE FROM queues WHERE expires<=?", (now,))
             db.execute("DELETE FROM queue_imports WHERE expires<=?", (now,))
 
+    def _event(self, db, sid, patient, kind, actor, text, reason=None):
+        db.execute(
+            "INSERT INTO events(sid,paciente_id,tipo,actor,texto,motivo,created_at) VALUES (?,?,?,?,?,?,?)",
+            (sid, patient, kind, actor, text, reason or None, self.instant()),
+        )
+
+    def _queued(self, db, version, sid):
+        row = db.execute("SELECT body FROM queues WHERE version=?", (version,)).fetchone()
+        return next((r for r in json.loads(row["body"]) if r["solicitacao_id"] == sid), {}) if row else {}
+
+    def history(self, sid):
+        with self.db() as db:
+            return [dict(r) for r in db.execute("SELECT * FROM events WHERE sid=? ORDER BY id DESC", (sid,))]
+
     def queue(self):
         self.purge_expired()
         with self.db() as db:
@@ -124,18 +141,38 @@ class Store:
                 "INSERT INTO queue_imports VALUES (?,?,?,?)",
                 (version, actor, self.instant(), self.clock() + TTL),
             )
+            entered = {r[0] for r in db.execute("SELECT sid FROM events WHERE tipo='entrada_na_fila'")}
+            for row in rows:
+                if row["solicitacao_id"] not in entered:
+                    self._event(
+                        db,
+                        row["solicitacao_id"],
+                        row.get("paciente_id"),
+                        "entrada_na_fila",
+                        actor,
+                        "Entrou na fila de cirurgia.",
+                    )
         return version
 
     def register_document(self, body, actor):
         self.purge_expired()
         _, queue = self.queue()
-        if not any(r["solicitacao_id"] == body["solicitacao_id"] for r in queue):
+        row = next((r for r in queue if r["solicitacao_id"] == body["solicitacao_id"]), None)
+        if row is None:
             raise ValueError("Solicitacao nao pertence a fila ativa")
         did = uuid4().hex
         with self.db() as db:
             db.execute(
                 "INSERT INTO documents VALUES (?,?,?,?,?,?)",
                 (did, body["solicitacao_id"], json.dumps(body), actor, self.instant(), self.clock() + TTL),
+            )
+            self._event(
+                db,
+                body["solicitacao_id"],
+                row.get("paciente_id"),
+                "documento_recebido",
+                actor,
+                "Documento recebido.",
             )
         return did
 
@@ -306,6 +343,8 @@ class Store:
             if not active or active["policy"] != POLICY_VERSION or version != body["versao_fila"]:
                 raise ValueError("Fila mudou: nova analise necessaria")
             self._approved(db, body)
+            sid = body["solicitacao_id"]
+            before = self._queued(db, version, sid)
             if action == "aprovar":
                 if not rows:
                     raise ValueError("Fila resultante ausente")
@@ -314,6 +353,14 @@ class Store:
                     (version + 1, json.dumps(validate_queue(rows)), p["expires"], POLICY_VERSION),
                 )
                 db.execute("UPDATE counters SET value=? WHERE name='queue'", (version + 1,))
+                after = self._queued(db, version + 1, sid)
+                kind = "posicao_alterada"
+                text = f"Posição alterada de {before['posicao']}ª para {after['posicao']}ª após aprovação médica."
+            elif action == "rejeitar":
+                kind, text = "proposta_rejeitada", "A proposta de mudança não foi aprovada."
+            else:
+                kind, text = "informacao_solicitada", "O médico pediu mais informações."
+            self._event(db, sid, before.get("paciente_id"), kind, actor, text, reason)
             db.execute(
                 "INSERT INTO decisions(proposal_id,actor,action,reason,created_at,expires) VALUES (?,?,?,?,?,?)",
                 (pid, actor, action, reason, self.instant(), p["expires"]),
@@ -335,4 +382,15 @@ class Store:
             db.execute(
                 "INSERT INTO decisions(proposal_id,actor,action,reason,created_at,expires) VALUES (?,?,?,?,?,?)",
                 (pid, actor, "cancelar", reason, self.instant(), p["expires"]),
+            )
+            body = json.loads(p["body"])
+            row = self._queued(db, body["versao_fila"], body["solicitacao_id"])
+            self._event(
+                db,
+                body["solicitacao_id"],
+                row.get("paciente_id"),
+                "proposta_cancelada",
+                actor,
+                "A proposta de mudança foi cancelada.",
+                reason,
             )

@@ -1,7 +1,7 @@
 # Spec: Histórico, trilha de decisões e retenção
 
 Issue: a definir
-Status: rascunho
+Status: aprovada para implementação (decisões do usuário em 2026-10-24)
 
 ## Contexto
 
@@ -16,7 +16,9 @@ Esta spec separa o que expira (conteúdo de documentos e seus derivados) do que 
 3. O histórico do paciente e o do médico são montados a partir desses eventos, do mais recente ao mais antigo. Só aparecem fatos registrados: proposta em análise ou em revisão não aparece como mudança de posição.
 4. Documentos enviados, seus arquivos, evidências e trechos continuam expirando em até 7 dias (spec 001-extracao-de-exames). A expiração do documento não apaga o evento "documento recebido" da trilha.
 5. A decisão do médico (nome, ação, motivo, data e hora) permanece consultável enquanto a solicitação existir. O parecer completo do tribunal segue a retenção da spec do tribunal.
-6. O paciente só vê os eventos da própria solicitação; o médico, os dos casos que pode revisar.
+6. O paciente só vê os eventos da própria solicitação; o médico, os dos casos que pode revisar. A permissão usa o vínculo do evento com o paciente, para que o histórico continue acessível depois que a fila importada expirar.
+7. A trilha de eventos não expira. Ela não contém conteúdo de documento, nome nem CNS; o motivo da decisão é o texto informado pelo médico, limitado a 2000 caracteres, como já é hoje na decisão.
+8. Esta spec registra os eventos que o backend já produz: entrada na fila, documento recebido, pedido de informação, proposta rejeitada, proposta cancelada e mudança de posição aprovada. Contestação e reavaliação são registradas pela spec 008 e exames pedidos pela spec 006, na mesma trilha. "Prioridade validada" depende de uma operação de validação pela regulação que ainda não existe no backend.
 
 ## Critérios de aceite
 
@@ -26,6 +28,8 @@ Esta spec separa o que expira (conteúdo de documentos e seus derivados) do que 
 - [ ] Proposta ainda em análise não gera evento de mudança de posição.
 - [ ] Um paciente não consegue ler eventos de outra solicitação.
 - [ ] A ordem do histórico é do mais recente ao mais antigo.
+- [ ] Depois que a fila importada expira, o paciente e o médico autorizado continuam lendo o histórico da solicitação.
+- [ ] A mudança de posição aprovada registra a posição anterior e a nova.
 
 ## Testes (TDD)
 
@@ -37,7 +41,7 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 - Política de guarda de prontuários reais.
 - Exportação do histórico.
 
-## Questões em aberto
+## Decisões
 
-- A trilha de eventos fica sem prazo de expiração na demonstração, ou também expira (por exemplo em 30 dias)? Decisão do time.
-- O motivo da rejeição do médico pode conter dado sensível: precisa de revisão ou limite de tamanho?
+- A trilha não expira na demonstração (decisão do usuário, 2026-10-24).
+- O motivo da decisão fica limitado a 2000 caracteres, sem revisão automática de conteúdo. Revisar antes de uso real.
