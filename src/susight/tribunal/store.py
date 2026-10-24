@@ -765,6 +765,40 @@ class Store:
         result["opinion"] = json.loads(result["opinion"]) if result["opinion"] else None
         return result
 
+    @staticmethod
+    def _summary(proposal, row):
+        body, opinion = json.loads(proposal["body"]), proposal["opinion"]
+        return {
+            "proposta_id": proposal["id"],
+            "solicitacao_id": body["solicitacao_id"],
+            "situacao": proposal["status"],
+            "posicao_atual": row.get("posicao"),
+            "posicao_proposta": body["posicao_proposta"],
+            "recomendacao": json.loads(opinion)["recomendacao"] if opinion else None,
+            "ordenacao_incerta": body["ordenacao_incerta"],
+            "evidencias_conflitantes": body["evidencias_conflitantes"],
+            "criada_em": proposal["created_at"],
+        }
+
+    def list_proposals(self, statuses, patients):
+        """Read-only listing for review (spec 009); `patients=None` means every case (admin)."""
+        _, queue = self.queue()
+        rows = {r["solicitacao_id"]: r for r in queue}
+        marks = ",".join("?" * len(statuses))
+        listed = []
+        with self.db() as db:
+            found = db.execute(
+                f"SELECT * FROM proposals WHERE expires>? AND status IN ({marks}) ORDER BY created_at, rowid",
+                (self.clock(), *statuses),
+            ).fetchall()
+            for proposal in found:
+                sid = json.loads(proposal["body"])["solicitacao_id"]
+                row = rows.get(sid, {})
+                patient = row.get("paciente_id") or self._patient_of(db, sid)
+                if patients is None or patient in patients:
+                    listed.append(self._summary(proposal, row))
+        return listed
+
     def live_evidence(self, body):
         self.purge_expired()
         with self.db() as db:
