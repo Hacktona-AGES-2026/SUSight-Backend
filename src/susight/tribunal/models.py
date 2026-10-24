@@ -24,6 +24,15 @@ class QueuePatient(Strict):
     sem_urgencia: bool
     sem_urgencia_verificador: bool = False
     posicao: int = Field(ge=1)
+    justificativa: str = Field(default="", max_length=2000)
+    # Optional scoring output from fila.json, shown in the proposal detail (spec 009).
+    criterios: (
+        dict[Literal["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"], float] | None
+    ) = None
+    swalis: Literal["A1", "A2", "B", "C", "D"] | None = None
+    prioridade_regulacao: str | None = Field(default=None, max_length=20)
+    # Read-only flag served by GET /fila (spec 008); accepted on import but never stored.
+    em_reavaliacao: bool | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
     def cid_flag(self):
@@ -110,12 +119,18 @@ class DocumentInput(Strict):
     paginas: int = Field(ge=1, le=10)
     tamanho_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
     sintetico: Literal[True]
+    pedido_id: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def image_page(self):
         if self.tipo_mime != "application/pdf" and self.paginas != 1:
             raise ValueError("Uma imagem corresponde a uma pagina")
         return self
+
+
+class ExamRequestInput(Strict):
+    exame: str = Field(min_length=3, max_length=200)
+    explicacao: str = Field(default="", max_length=500)
 
 
 class EvidenceRegistration(Strict):

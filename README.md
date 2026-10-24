@@ -51,7 +51,17 @@ uv run --no-sync python -m susight.provision --directory data/identidades --pati
 ```
 
 Os tokens individuais ficam em arquivos privados e não são impressos. Os vínculos
-de paciente devem corresponder à fila importada. Depois iniciar o serviço:
+de paciente devem corresponder à fila importada.
+
+Para login com senha (spec 007), criar contas de demonstração. A senha provisória
+é gerada e gravada só no arquivo indicado, com permissão 0600:
+
+```sh
+uv run --no-sync python -m susight.accounts --database data/susight.sqlite3 \
+  --id PAC-EXEMPLO --papel paciente --paciente PAC-EXEMPLO --senha-arquivo data/identidades/PAC-EXEMPLO.senha
+```
+
+Depois iniciar o serviço:
 
 ```sh
 uv run --no-sync --env-file .env uvicorn susight.api:create_app \

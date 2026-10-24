@@ -1,7 +1,7 @@
 # Spec: Contestação e registro de export
 
 Issue: a definir
-Status: rascunho
+Status: aprovada para implementação (decisões do usuário em 2026-10-24)
 
 ## Contexto
 
@@ -23,6 +23,14 @@ O web (specs 005 e 006) permite ao médico contestar a posição de um paciente 
 7. O CSV segue a ordem da fila vigente e não inclui propostas ainda não aprovadas.
 8. O log do export não guarda o conteúdo do CSV.
 
+**Detalhamento para a implementação**
+
+9. "Enviada para nova análise da IA" significa: a contestação fica `em_reavaliacao` até um médico autorizado criar nova proposta para a solicitação (resultado `nova_proposta`, que segue para o tribunal) ou concluir com `posicao_mantida` e uma justificativa. A IA não reabre análise sozinha, porque o tribunal só analisa propostas com evidências aprovadas.
+10. Contestação e conclusão entram na trilha (spec 004) como `contestacao` e `reavaliacao_concluida`.
+11. A fila devolvida pelo backend marca `em_reavaliacao` em cada solicitação.
+12. O CSV usa as colunas do entregável do desafio: `solicitacao_id`, `posicao` e `justificativa`. A justificativa vem da fila importada. O administrador exporta a fila inteira; o médico, só as solicitações dos casos que pode revisar; o paciente não exporta.
+13. Contestações e registros de export não expiram, como a trilha.
+
 ## Critérios de aceite
 
 - [ ] Contestação registrada guarda motivo, responsável, data e hora e não altera a posição.
@@ -33,6 +41,8 @@ O web (specs 005 e 006) permite ao médico contestar a posição de um paciente 
 - [ ] CSV com campo contendo vírgula, aspas ou quebra de linha mantém as colunas.
 - [ ] O CSV só tem a ordem da fila aprovada.
 - [ ] Usuário sem autenticação ou sem permissão não exporta nem contesta.
+- [ ] Criar nova proposta para a solicitação contestada conclui a reavaliação com `nova_proposta`; concluir manualmente exige justificativa e registra `posicao_mantida`.
+- [ ] O médico exporta só as solicitações dos seus casos; o administrador, a fila inteira.
 
 ## Testes (TDD)
 
@@ -44,8 +54,8 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 - Export de revisões pendentes ou do histórico de decisões.
 - Reavaliação automática depois de rejeição.
 
-## Questões em aberto
+## Decisões
 
-- O CSV leva CNS completo, mascarado ou identificador anônimo (LGPD)?
-- Quem pode contestar: qualquer médico autorizado ou só o da solicitação?
-- Colunas e ordem do CSV, que pertencem ao web (spec 006).
+- O CSV não leva CNS: o dataset não tem esse campo e o entregável só pede `solicitacao_id`, `posicao` e `justificativa`.
+- Qualquer médico autorizado para o caso pode contestar.
+- As colunas seguem o entregável do desafio; o web pode reordenar na apresentação.

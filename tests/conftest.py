@@ -71,6 +71,49 @@ def dataset(tmp_path):
     return write
 
 
+@pytest.fixture
+def history_api(tmp_path):
+    """API with a 20-patient queue (PAC1..PAC20) and scoped demo identities."""
+    import hashlib
+
+    from fastapi.testclient import TestClient
+    from test_tribunal import FakeProvider, queue
+
+    from susight.access import Access
+    from susight.api import create_app
+
+    clock = [1800000000.0]
+    principals = [
+        {
+            "id": name,
+            "papel": role,
+            "pacientes": scope,
+            "token_sha256": hashlib.sha256(name.encode()).hexdigest(),
+        }
+        for name, role, scope in [
+            ("admin", "admin", []),
+            ("doctor", "medico", ["PAC20"]),
+            ("patient", "paciente", ["PAC20"]),
+            ("other", "medico", ["PAC1"]),
+            ("other_patient", "paciente", ["PAC1"]),
+        ]
+    ]
+    app = create_app(
+        tmp_path / "db.sqlite",
+        FakeProvider(),
+        access=Access(entries=principals),
+        clock=lambda: clock[0],
+        start_worker=False,
+    )
+    with TestClient(app) as client:
+        client.headers["Authorization"] = "Bearer admin"
+        rows = queue()
+        for row in rows:
+            row["paciente_id"] = "PAC" + row["solicitacao_id"]
+        assert client.put("/fila", json={"versao_esperada": 0, "pacientes": rows}).status_code == 200
+        yield client, clock
+
+
 def read_lines(path):
     return [json.loads(line) for line in Path(path).read_text().splitlines()]
 

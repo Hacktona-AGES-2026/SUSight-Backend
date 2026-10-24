@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import csv
+import hashlib
+import io
 import os
+import re
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import Field, field_validator
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
+from pydantic import Field, field_validator, model_validator
 
-from .access import Access
+from . import extraction
+from .access import Access, Principal
 from .artifacts import purge_artifacts
 from .policy import POLICY_VERSION
 from .tribunal.guards import guard, validate_queue
@@ -19,13 +24,14 @@ from .tribunal.models import (
     EvidenceReferences,
     EvidenceRegistration,
     EvidenceReview,
+    ExamRequestInput,
     ProposalInput,
     QueuePatient,
     Strict,
 )
 from .tribunal.provider import GeminiProvider
 from .tribunal.service import Tribunal
-from .tribunal.store import Store
+from .tribunal.store import SESSION_IDLE_SECONDS, AccountLocked, LoginRefused, Store
 
 
 class QueueImport(Strict):
@@ -37,6 +43,13 @@ class Decision(Strict):
     medico: str = Field(min_length=3, max_length=200)
     acao: Literal["aprovar", "rejeitar", "pedir_informacoes"]
     motivo: str = Field(default="", max_length=2000)
+    exames: list[ExamRequestInput] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def exams_only_when_asking(self):
+        if (self.acao == "pedir_informacoes") != bool(self.exames):
+            raise ValueError("Pedir informacoes exige exames; as demais decisoes nao aceitam exames")
+        return self
 
     @field_validator("medico")
     @classmethod
@@ -47,11 +60,84 @@ class Decision(Strict):
         return value
 
 
+class ContestInput(Strict):
+    motivo: str = Field(min_length=3, max_length=2000)
+
+
+class ConclusionInput(Strict):
+    justificativa: str = Field(min_length=3, max_length=2000)
+
+
+class PreferencesInput(Strict):
+    # Only optional notices; "exame_pedido" is rejected as an extra field (spec 005).
+    documento_recebido: bool | None = None
+    analise_concluida: bool | None = None
+    prioridade_validada: bool | None = None
+
+
+class ContactInput(Strict):
+    nome: str = Field(min_length=2, max_length=200)
+    parentesco: str = Field(min_length=2, max_length=50)
+    telefone: str = Field(pattern=r"^[0-9 ()+-]{8,20}$")
+
+
+class DeviceInput(Strict):
+    plataforma: Literal["ios", "android", "windows"]
+    token: str = Field(min_length=8, max_length=500)
+
+
+def masked_phone(phone):
+    digits = re.sub(r"\D", "", phone)
+    return "*" * (len(digits) - 4) + digits[-4:]
+
+
+class FileUpload(Strict):
+    solicitacao_id: str = Field(min_length=1, max_length=100)
+    tipo_mime: str = Field(max_length=100)
+    conteudo_base64: str = Field(max_length=15_000_000)
+    termo_versao: str = Field(max_length=100)
+    aceite_termo: bool
+    sintetico: Literal[True]
+    pedido_id: str | None = Field(default=None, max_length=100)
+
+
+class FieldReview(Strict):
+    acao: Literal["aprovar", "corrigir", "rejeitar"]
+    valor_corrigido: Any = None
+    justificativa: str = Field(min_length=3, max_length=2000)
+
+    @model_validator(mode="after")
+    def correction_has_value(self):
+        if self.acao == "corrigir" and self.valor_corrigido is None:
+            raise ValueError("Corrigir exige o valor corrigido")
+        return self
+
+
+ProposalStatus = Literal[
+    "aguardando_tribunal",
+    "processando",
+    "tribunal_indisponivel",
+    "pronta_para_medico",
+    "aprovar",
+    "rejeitar",
+    "pedir_informacoes",
+    "cancelada",
+    "desatualizada",
+]
+
+
+class LoginInput(Strict):
+    identificador: str = Field(min_length=1, max_length=100)
+    senha: str = Field(min_length=1, max_length=200)
+
+
 class ReferenceVersion(Strict):
     versao_fila: int = Field(ge=1)
 
 
-def create_app(database=None, provider=None, token=None, start_worker=True, access=None, clock=None):
+def create_app(
+    database=None, provider=None, token=None, start_worker=True, access=None, clock=None, extractor=None
+):
     # Refuse an unauthenticated clinical API. Config is evaluated at lifespan time.
     configured_token = token if token is not None else os.environ.get("SUSIGHT_API_TOKEN", "")
     identities = access
@@ -90,12 +176,37 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
 
     app = FastAPI(title="SUSight Backend", version="0.1.0", lifespan=lifespan)
     app.state.store, app.state.tribunal = store, tribunal
+    app.state.extractor = extractor or extraction.GeminiExtractor()
 
     def authenticate(authorization: str | None = Header(default=None)):
         principal = identities.resolve(authorization)
+        if principal is None and authorization and authorization.startswith("Bearer "):
+            account = store.session(authorization[7:])
+            if account:
+                principal = Principal(account["id"], account["papel"], frozenset(account["pacientes"]))
         if principal is None:
             raise HTTPException(401, "Autenticacao necessaria")
         return principal
+
+    @app.post("/sessoes")
+    def start_session(body: LoginInput):
+        try:
+            created = store.login(body.identificador, body.senha)
+        except AccountLocked:
+            raise HTTPException(429, "Muitas tentativas. Tente novamente mais tarde.") from None
+        except LoginRefused:
+            raise HTTPException(401, "Identificador ou senha invalidos") from None
+        return created | {"inatividade_segundos": SESSION_IDLE_SECONDS}
+
+    @app.delete("/sessoes")
+    def end_session(authorization: str | None = Header(default=None)):
+        if (
+            not authorization
+            or not authorization.startswith("Bearer ")
+            or not store.logout(authorization[7:])
+        ):
+            raise HTTPException(401, "Sessao nao encontrada")
+        return {"encerrada": True}
 
     def professional(principal):
         if principal.papel not in {"admin", "medico"}:
@@ -122,11 +233,46 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
     @app.get("/fila", dependencies=[Depends(authenticate)])
     def current_queue(principal=principal_dependency):
         version, rows = store.queue()
+        disputed = store.disputed()
         return {
             "politica": POLICY_VERSION,
             "versao": version,
-            "pacientes": [r for r in rows if principal.permits(r)],
+            "pacientes": [
+                r | {"em_reavaliacao": r["solicitacao_id"] in disputed} for r in rows if principal.permits(r)
+            ],
         }
+
+    @app.get("/fila/exportacao.csv")
+    def export_queue(principal=principal_dependency):
+        professional(principal)
+        version, rows = store.queue()
+        rows = [r for r in rows if principal.permits(r)]
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow(["solicitacao_id", "posicao", "justificativa"])
+        writer.writerows([r["solicitacao_id"], r["posicao"], r.get("justificativa", "")] for r in rows)
+        store.log_export(principal.id, version, len(rows))
+        return Response(out.getvalue(), media_type="text/csv; charset=utf-8")
+
+    @app.post("/solicitacoes/{sid}/contestacao", status_code=201)
+    def contest(sid: str, body: ContestInput, principal=principal_dependency):
+        professional(principal)
+        row = permit_case(sid, principal)
+        try:
+            store.open_dispute(sid, row.get("paciente_id"), principal.id, body.motivo)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"solicitacao_id": sid, "situacao": "em_reavaliacao"}
+
+    @app.post("/solicitacoes/{sid}/contestacao/conclusao")
+    def conclude_contest(sid: str, body: ConclusionInput, principal=principal_dependency):
+        professional(principal)
+        permit_case(sid, principal)
+        try:
+            store.conclude_dispute(sid, principal.id, body.justificativa)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"solicitacao_id": sid, "situacao": "concluida", "resultado": "posicao_mantida"}
 
     @app.put("/fila", dependencies=[Depends(authenticate)])
     def import_queue(payload: QueueImport, principal=principal_dependency):
@@ -138,6 +284,93 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
             return {"versao": version, "solicitacoes": len(rows)}
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
+
+    def patient_of(principal):
+        if principal.papel != "paciente":
+            raise HTTPException(403, "Operacao restrita ao paciente")
+        return next(iter(principal.pacientes))
+
+    def audience(principal):
+        if principal.papel == "paciente":
+            return "paciente", principal.pacientes
+        return "profissional", None if principal.papel == "admin" else principal.pacientes
+
+    @app.get("/notificacoes")
+    def notifications(principal=principal_dependency):
+        rows = store.notifications(*audience(principal), principal.id)
+        return {
+            "nao_lidas": sum(not r["lida"] for r in rows),
+            "notificacoes": [
+                {
+                    "id": r["id"],
+                    "tipo": r["tipo"],
+                    "titulo": r["titulo"],
+                    "texto": r["texto"],
+                    "solicitacao_id": r["sid"],
+                    "lida": bool(r["lida"]),
+                    "data_hora": r["created_at"],
+                }
+                for r in rows
+            ],
+        }
+
+    @app.post("/notificacoes/{nid}/lida")
+    def mark_read(nid: int, principal=principal_dependency):
+        if not store.mark_read(nid, *audience(principal), principal.id):
+            raise HTTPException(404, "Notificacao nao encontrada")
+        return {"id": nid, "lida": True}
+
+    @app.get("/preferencias/notificacoes")
+    def get_preferences(principal=principal_dependency):
+        return store.preferences(patient_of(principal))
+
+    @app.put("/preferencias/notificacoes")
+    def put_preferences(body: PreferencesInput, principal=principal_dependency):
+        return store.set_preferences(patient_of(principal), body.model_dump(exclude_none=True))
+
+    @app.get("/contatos")
+    def contacts(principal=principal_dependency):
+        return {
+            "contatos": [
+                {
+                    "contato_id": c["id"],
+                    "nome": c["nome"],
+                    "parentesco": c["parentesco"],
+                    "telefone": masked_phone(c["telefone"]),
+                }
+                for c in store.contacts(patient_of(principal))
+            ]
+        }
+
+    @app.post("/contatos", status_code=201)
+    def add_contact(body: ContactInput, principal=principal_dependency):
+        return {"contato_id": store.add_contact(patient_of(principal), body.model_dump())}
+
+    @app.delete("/contatos/{cid}")
+    def delete_contact(cid: int, principal=principal_dependency):
+        if not store.delete_contact(patient_of(principal), cid):
+            raise HTTPException(404, "Contato nao encontrado")
+        return {"contato_id": cid, "removido": True}
+
+    @app.get("/dispositivos")
+    def devices(principal=principal_dependency):
+        return {
+            "dispositivos": [
+                {"dispositivo_id": d["id"], "plataforma": d["plataforma"], "data_hora": d["created_at"]}
+                for d in store.devices(principal.id)
+            ]
+        }
+
+    @app.post("/dispositivos", status_code=201)
+    def add_device(body: DeviceInput, principal=principal_dependency):
+        patient = next(iter(principal.pacientes)) if principal.papel == "paciente" else None
+        return {"dispositivo_id": store.add_device(principal.id, patient, body.model_dump())}
+
+    @app.delete("/dispositivos/{did}")
+    def delete_device(did: int, principal=principal_dependency):
+        if not store.delete_device(principal.id, did):
+            raise HTTPException(404, "Dispositivo nao encontrado")
+        return {"dispositivo_id": did, "removido": True}
 
     @app.get("/solicitacoes/{sid}/historico")
     def history(sid: str, principal=principal_dependency):
@@ -158,6 +391,121 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
                 for e in events
             ],
         }
+
+    @app.get("/solicitacoes/{sid}/exames-pedidos")
+    def exam_requests(sid: str, principal=principal_dependency):
+        rows = store.exam_requests(sid)
+        if rows:
+            if not principal.permits({"paciente_id": rows[0]["paciente_id"]}):
+                raise HTTPException(404, "Pedidos nao encontrados")
+        else:
+            permit_case(sid, principal)
+        return {
+            "solicitacao_id": sid,
+            "pendentes": sum(r["status"] == "pendente" for r in rows),
+            "pedidos": [
+                {
+                    "pedido_id": r["id"],
+                    "exame": r["exame"],
+                    "explicacao": r["explicacao"],
+                    "situacao": r["status"],
+                    "responsavel": r["actor"],
+                    "data_hora": r["created_at"],
+                }
+                for r in rows
+            ],
+        }
+
+    @app.get("/termos/upload")
+    def upload_term(principal=principal_dependency):
+        return {"versao": extraction.TERM_VERSION, "texto": extraction.TERM_TEXT}
+
+    @app.post("/documentos/arquivo", status_code=201)
+    def upload_file(body: FileUpload, principal=principal_dependency):
+        permit_case(body.solicitacao_id, principal)
+        if not body.aceite_termo or body.termo_versao != extraction.TERM_VERSION:
+            raise HTTPException(
+                422,
+                "Aceite a versao vigente do termo antes de enviar. Sem aceite, o documento pode ser levado a UBS.",
+            )
+        try:
+            data = extraction.decode(body.conteudo_base64)
+            pages = extraction.check_file(data, body.tipo_mime)
+        except extraction.FileRejected as exc:
+            raise HTTPException(422, str(exc)) from None
+        document = {
+            "solicitacao_id": body.solicitacao_id,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "tipo_mime": body.tipo_mime,
+            "paginas": pages,
+            "tamanho_bytes": len(data),
+            "sintetico": True,
+            "pedido_id": body.pedido_id,
+            "origem": "paciente" if principal.papel == "paciente" else "profissional",
+        }
+        try:
+            did = store.register_document(
+                document, principal.id, file=(data, body.tipo_mime), term_version=extraction.TERM_VERSION
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return {"documento_id": did, "situacao": "recebido", "paginas": pages}
+
+    def permitted_document(did, principal):
+        try:
+            doc = store.document(did)
+        except KeyError:
+            raise HTTPException(404, "Documento nao encontrado") from None
+        permit_case(doc["sid"], principal)
+        return doc
+
+    @app.post("/documentos/{did}/extracao")
+    async def run_extraction(did: str, principal=principal_dependency):
+        permitted_document(did, principal)
+        stored = store.document_file(did)
+        if stored is None:
+            raise HTTPException(409, "Documento sem arquivo para leitura")
+        pages = extraction.read_pages(*stored)
+        if pages is None:
+            result = ("revisao_manual", ["leitura_automatica_indisponivel"], extraction.manual("ilegivel"))
+        else:
+            masked = extraction.mask(pages)
+            if not extraction.masked_safely(masked):
+                result = ("revisao_manual", ["mascaramento_nao_assegurado"], extraction.manual("incerto"))
+            else:
+                try:
+                    raw = await app.state.extractor.extract(masked)
+                except extraction.ExtractorUnavailable:
+                    result = ("pendente", ["servico_indisponivel"], {})
+                except Exception:  # noqa: BLE001 -- provider failures must never become simulated data
+                    result = ("pendente", ["leitura_falhou"], {})
+                else:
+                    fields = extraction.normalize(raw, masked)
+                    warnings = (
+                        ["revisao_necessaria"] if any(f["requer_revisao"] for f in fields.values()) else []
+                    )
+                    result = ("extraido", warnings, fields)
+        store.save_extraction(did, *result)
+        return {"documento_id": did, "situacao": result[0], "avisos": result[1]}
+
+    @app.get("/documentos/{did}/extracao")
+    def get_extraction(did: str, principal=principal_dependency):
+        permitted_document(did, principal)
+        return store.extraction(did) or {"situacao": "nao_iniciada", "avisos": [], "campos": {}}
+
+    @app.post("/documentos/{did}/campos/{campo}/revisao")
+    def review_field(did: str, campo: str, body: FieldReview, principal=principal_dependency):
+        professional(principal)
+        permitted_document(did, principal)
+        if campo not in extraction.FIELDS:
+            raise HTTPException(404, "Campo nao encontrado")
+        try:
+            store.review_field(did, campo, principal.id, body.acao, body.valor_corrigido, body.justificativa)
+        except KeyError:
+            raise HTTPException(404, "Extracao nao encontrada") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"documento_id": did, "campo": campo, "acao": body.acao}
 
     @app.post("/documentos", status_code=201)
     def register_document(body: DocumentInput, principal=principal_dependency):
@@ -217,6 +565,25 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
 
+    ready_only = Query(default=["pronta_para_medico"])
+
+    @app.get("/propostas")
+    def list_proposals(situacao: list[ProposalStatus] = ready_only, principal=principal_dependency):
+        professional(principal)
+        patients = None if principal.papel == "admin" else principal.pacientes
+        items = store.list_proposals(sorted(set(situacao)), patients)
+        return {"total": len(items), "propostas": items}
+
+    @app.get("/propostas/{pid}")
+    def proposal_detail(pid: str, principal=principal_dependency):
+        professional(principal)
+        try:
+            body = store.proposal_detail(pid)
+        except KeyError:
+            raise HTTPException(404, "Proposta nao encontrada") from None
+        permit_case(body["solicitacao_id"], principal)
+        return body
+
     @app.post("/propostas", status_code=201)
     def create_proposal(body: EvidenceReferences, principal=principal_dependency):
         professional(principal)
@@ -232,7 +599,7 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
                 store.approved_payload(eid, body.solicitacao_id) for eid in body.evidencias_ids
             ]
             payload = ProposalInput.model_validate(payload).model_dump()
-            pid = store.create(payload)
+            pid = store.create(payload, principal.id)
         except (ValueError, KeyError) as exc:
             raise HTTPException(422, "Proposta ou evidencia invalida: " + str(exc)) from None
         return {"proposta_id": pid, "situacao": "aguardando_tribunal"}
@@ -296,7 +663,14 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from None
         try:
-            version = store.decide(pid, principal.id, payload.acao, payload.motivo.strip(), changed)
+            version = store.decide(
+                pid,
+                principal.id,
+                payload.acao,
+                payload.motivo.strip(),
+                changed,
+                [e.model_dump() for e in payload.exames],
+            )
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         return {"proposta_id": pid, "situacao": payload.acao, "versao_fila": version}

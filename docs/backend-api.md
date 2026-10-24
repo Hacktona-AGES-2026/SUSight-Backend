@@ -36,12 +36,44 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /evidencias` | Valor proposto, trecho, campo, página, confiança e referência à fonte. |
 | `GET /evidencias/{id}` | Evidência e histórico da revisão permitidos ao caso. |
 | `POST /evidencias/{id}/revisao` | Aprovação/rejeição pelo profissional autorizado, com justificativa. |
+| `GET /propostas?situacao=...` | Propostas dos casos do profissional, da mais antiga para a mais nova; padrão `pronta_para_medico` (spec 009). |
+| `GET /propostas/{id}` | Detalhe para revisão: posições, critérios, SWALIS, evidências aprovadas, parecer, histórico e decisão (spec 009). |
 | `POST /propostas` | Cria proposta usando somente IDs de evidências aprovadas no servidor. |
 | `POST /propostas/{id}/tribunal` | Análise ou reprocessamento de proposta válida. |
 | `GET /propostas/{id}/parecer` | Parecer interno para profissional do caso. |
 | `POST /propostas/{id}/decisao` | Aprovação, rejeição com motivo ou pedido de informações. |
 | `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
 | `GET /solicitacoes/{id}/historico` | Trilha de eventos da solicitação, do mais recente ao mais antigo (spec 004). |
+| `GET /solicitacoes/{id}/exames-pedidos` | Exames pedidos pelo médico, com situação e contagem de pendentes (spec 006). |
+| `POST /solicitacoes/{id}/contestacao` | Contesta a posição com motivo; a solicitação fica em reavaliação (spec 008). |
+| `POST /solicitacoes/{id}/contestacao/conclusao` | Conclui a reavaliação mantendo a posição, com justificativa (spec 008). |
+| `GET /fila/exportacao.csv` | CSV `solicitacao_id,posicao,justificativa` da fila vigente; registra o export (spec 008). |
+| `GET /notificacoes`, `POST /notificacoes/{id}/lida` | Avisos do paciente ou dos casos do profissional; leitura por pessoa (spec 005). |
+| `GET/PUT /preferencias/notificacoes` | Avisos desligáveis do paciente; o de exame pedido é obrigatório (spec 005). |
+| `GET/POST /contatos`, `DELETE /contatos/{id}` | Contatos de acompanhamento do paciente; telefone sempre mascarado na leitura (spec 005). |
+| `GET/POST /dispositivos`, `DELETE /dispositivos/{id}` | Dispositivos da própria identidade para entrega futura de push; o token não é devolvido (spec 005). |
+| `POST /sessoes` | Login com `identificador` e `senha`; devolve token de sessão. 401 genérico; 429 com conta bloqueada (spec 007). |
+| `DELETE /sessoes` | Sai da conta: encerra a sessão e remove os dispositivos da identidade (spec 007). |
+| `GET /termos/upload` | Versão e texto (minuta) do termo de envio (spec 001). |
+| `POST /documentos/arquivo` | Envio do arquivo em base64 com aceite do termo; valida formato, tamanho e páginas (spec 001). |
+| `POST /documentos/{id}/extracao` | Lê o PDF localmente, mascara e, se seguro, envia ao extrator; senão, revisão manual (spec 001). |
+| `GET /documentos/{id}/extracao` | Situação, avisos e os sete campos com evidências e última revisão (spec 001). |
+| `POST /documentos/{id}/campos/{campo}/revisao` | Aprovação, correção ou rejeição do campo pelo profissional; o valor extraído é preservado (spec 001). |
+
+A extração só envia ao Gemini texto mascarado de documento sintético e só com
+`GEMINI_MODEL` e `GEMINI_API_KEY` configurados; sem isso fica `pendente`, sem resposta
+simulada. Imagens e PDFs digitalizados vão para revisão manual. Toda saída do extrator
+passa pela validação de `susight.extraction.normalize`: valor sem trecho existente no
+texto, de confiança baixa ou fora do domínio vira `null` com revisão.
+
+Sessões expiram após 30 minutos sem uso; cinco senhas erradas seguidas bloqueiam a
+conta por 15 minutos. A senha fica só como hash scrypt com sal, e o token de sessão só
+como SHA-256. Tokens estáticos do `access.json` continuam aceitos.
+
+`pedir_informacoes` exige `exames` (até 10, cada um com `exame` e `explicacao` opcional);
+as demais decisões recusam o campo. `POST /documentos` aceita `pedido_id` para ligar o
+envio a um pedido `pendente` da mesma solicitação. A situação do pedido avança sozinha:
+`recebido` no envio, `em_analise` na primeira evidência e `atendido` na revisão dela.
 
 OpenAPI em `/docs` contém campos e limites. Importar a fila selecionando de `fila.json`
 os campos de `QueuePatient`, incluindo `paciente_id` e `politica: "priorizacao-sem-espera-v1"`; não enviar critérios ou outros

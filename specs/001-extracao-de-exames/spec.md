@@ -1,7 +1,7 @@
 # Spec: Extração de dados de exames e laudos
 
 Issue: [Hacktona-AGES-2026/SUSight#7 — [Backend] [IA] Pipeline de análise de exame e laudo](https://github.com/Hacktona-AGES-2026/SUSight/issues/7)
-Status: em revisão
+Status: aprovada para implementação do MVP (decisões do usuário em 2026-10-24; ver plano)
 
 Recomendações de escopo do MVP adotadas por solicitação do usuário em 2026-10-24. A implementação e a aceitação permanecem sujeitas à revisão prevista no SDD.
 
@@ -118,6 +118,13 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 Na revisão de 2026-10-24, permanecem pendentes o texto final do termo de upload e o canal assistencial alternativo. As decisões anteriores de extração continuam abaixo. As oito questões foram substituídas pelas recomendações explícitas acima. Ferramentas de leitura, modelo e provedor permanecem decisões do futuro plano, conforme o escopo desta entrega; nenhum deles foi escolhido nesta spec.
 
 A preparação do conjunto de teste, a conferência dos termos de eventual serviço externo e a verificação de acesso, mascaramento e expiração continuam sendo condições de aceitação a executar. A definição de um padrão recomendado não comprova que esses controles já estejam implementados ou testados.
+
+## Decisões de implementação (2026-10-24)
+
+- Leitura local de PDF com texto selecionável (`pypdf`). Imagens e PDFs digitalizados são aceitos, mas vão para revisão manual, porque sem OCR local não dá para assegurar o mascaramento antes de um envio externo.
+- Mascaramento por padrões (CNS, CPF e linhas rotuladas como nome ou paciente), seguido de verificação. Nome fora de rótulo não é detectado: limitação aceitável só porque o MVP usa documentos sintéticos.
+- O provedor externo é o Gemini, configurado por `GEMINI_MODEL` e `GEMINI_API_KEY`, e só recebe texto mascarado de documento marcado como sintético. Sem configuração, a extração fica pendente com aviso.
+- O conjunto de 40 documentos com gabarito depende do provedor real para avaliação e fica como tarefa pendente; os testes automatizados usam documentos sintéticos gerados no próprio teste e um extrator falso.
 
 ## Referências de compatibilidade
 
