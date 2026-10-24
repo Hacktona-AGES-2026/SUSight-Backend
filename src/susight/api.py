@@ -12,7 +12,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import Field, field_validator, model_validator
 
-from .access import Access
+from .access import Access, Principal
 from .artifacts import purge_artifacts
 from .policy import POLICY_VERSION
 from .tribunal.guards import guard, validate_queue
@@ -29,7 +29,7 @@ from .tribunal.models import (
 )
 from .tribunal.provider import GeminiProvider
 from .tribunal.service import Tribunal
-from .tribunal.store import Store
+from .tribunal.store import SESSION_IDLE_SECONDS, AccountLocked, LoginRefused, Store
 
 
 class QueueImport(Strict):
@@ -89,6 +89,11 @@ def masked_phone(phone):
     return "*" * (len(digits) - 4) + digits[-4:]
 
 
+class LoginInput(Strict):
+    identificador: str = Field(min_length=1, max_length=100)
+    senha: str = Field(min_length=1, max_length=200)
+
+
 class ReferenceVersion(Strict):
     versao_fila: int = Field(ge=1)
 
@@ -135,9 +140,33 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
 
     def authenticate(authorization: str | None = Header(default=None)):
         principal = identities.resolve(authorization)
+        if principal is None and authorization and authorization.startswith("Bearer "):
+            account = store.session(authorization[7:])
+            if account:
+                principal = Principal(account["id"], account["papel"], frozenset(account["pacientes"]))
         if principal is None:
             raise HTTPException(401, "Autenticacao necessaria")
         return principal
+
+    @app.post("/sessoes")
+    def start_session(body: LoginInput):
+        try:
+            created = store.login(body.identificador, body.senha)
+        except AccountLocked:
+            raise HTTPException(429, "Muitas tentativas. Tente novamente mais tarde.") from None
+        except LoginRefused:
+            raise HTTPException(401, "Identificador ou senha invalidos") from None
+        return created | {"inatividade_segundos": SESSION_IDLE_SECONDS}
+
+    @app.delete("/sessoes")
+    def end_session(authorization: str | None = Header(default=None)):
+        if (
+            not authorization
+            or not authorization.startswith("Bearer ")
+            or not store.logout(authorization[7:])
+        ):
+            raise HTTPException(401, "Sessao nao encontrada")
+        return {"encerrada": True}
 
     def professional(principal):
         if principal.papel not in {"admin", "medico"}:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
+import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -16,6 +19,24 @@ from .guards import validate_queue
 
 class EvidenceUnavailable(ValueError):
     pass
+
+
+class LoginRefused(ValueError):
+    pass
+
+
+class AccountLocked(ValueError):
+    pass
+
+
+# Spec 007: demonstration values.
+SESSION_IDLE_SECONDS = 1800
+MAX_ATTEMPTS = 5
+LOCK_SECONDS = 900
+
+
+def password_hash(password, salt):
+    return hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1).hex()
 
 
 # Spec 005: fixed, non-alarming texts; never document content, name or CNS.
@@ -105,6 +126,12 @@ class Store:
               parentesco TEXT NOT NULL, telefone TEXT NOT NULL, created_at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS devices(id INTEGER PRIMARY KEY, principal_id TEXT NOT NULL, paciente_id TEXT,
               plataforma TEXT NOT NULL, token TEXT NOT NULL, created_at TEXT NOT NULL);
+            -- Accounts and sessions (spec 007): scrypt password hash, session token stored as SHA-256 only.
+            CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, papel TEXT NOT NULL, pacientes TEXT NOT NULL,
+              senha_hash TEXT NOT NULL, sal TEXT NOT NULL, tentativas INTEGER NOT NULL DEFAULT 0,
+              bloqueado_ate REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS sessions(token_sha256 TEXT PRIMARY KEY, account_id TEXT NOT NULL,
+              created_at TEXT NOT NULL, last_seen REAL NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -156,6 +183,81 @@ class Store:
             )
             db.execute("DELETE FROM queues WHERE expires<=?", (now,))
             db.execute("DELETE FROM queue_imports WHERE expires<=?", (now,))
+            db.execute("DELETE FROM sessions WHERE last_seen<?", (now - SESSION_IDLE_SECONDS,))
+
+    def provision_account(self, aid, role, patients, password):
+        if role not in {"admin", "medico", "paciente"} or (role == "paciente" and len(patients) != 1):
+            raise ValueError("Conta invalida")
+        salt = secrets.token_bytes(16)
+        with self.db() as db:
+            try:
+                db.execute(
+                    "INSERT INTO accounts(id,papel,pacientes,senha_hash,sal,created_at) VALUES (?,?,?,?,?,?)",
+                    (
+                        aid,
+                        role,
+                        json.dumps(sorted(patients)),
+                        password_hash(password, salt),
+                        salt.hex(),
+                        self.instant(),
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                raise ValueError("Conta ja existe") from None
+
+    def login(self, aid, password):
+        now, token, outcome = self.clock(), None, LoginRefused
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM accounts WHERE id=?", (aid,)).fetchone()
+            if row is None:
+                password_hash(password, b"\0" * 16)  # same work as a real check
+            elif row["bloqueado_ate"] > now:
+                outcome = AccountLocked
+            elif hmac.compare_digest(row["senha_hash"], password_hash(password, bytes.fromhex(row["sal"]))):
+                db.execute("UPDATE accounts SET tentativas=0,bloqueado_ate=0 WHERE id=?", (aid,))
+                token = secrets.token_urlsafe(32)
+                db.execute(
+                    "INSERT INTO sessions VALUES (?,?,?,?)",
+                    (hashlib.sha256(token.encode()).hexdigest(), aid, self.instant(), now),
+                )
+            else:
+                attempts = row["tentativas"] + 1
+                locked = attempts >= MAX_ATTEMPTS
+                db.execute(
+                    "UPDATE accounts SET tentativas=?,bloqueado_ate=? WHERE id=?",
+                    (0 if locked else attempts, now + LOCK_SECONDS if locked else 0, aid),
+                )
+        # Raise only after the attempt counter is committed.
+        if token is None:
+            raise outcome("Acesso recusado")
+        return {"token": token, "papel": row["papel"]}
+
+    def session(self, token):
+        digest, now = hashlib.sha256(token.encode()).hexdigest(), self.clock()
+        with self.db() as db:
+            row = db.execute(
+                "SELECT s.last_seen,a.id,a.papel,a.pacientes FROM sessions s JOIN accounts a ON a.id=s.account_id"
+                " WHERE s.token_sha256=?",
+                (digest,),
+            ).fetchone()
+            if row is None:
+                return None
+            if now - row["last_seen"] > SESSION_IDLE_SECONDS:
+                db.execute("DELETE FROM sessions WHERE token_sha256=?", (digest,))
+                return None
+            db.execute("UPDATE sessions SET last_seen=? WHERE token_sha256=?", (now, digest))
+        return {"id": row["id"], "papel": row["papel"], "pacientes": json.loads(row["pacientes"])}
+
+    def logout(self, token):
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        with self.db() as db:
+            row = db.execute("SELECT account_id FROM sessions WHERE token_sha256=?", (digest,)).fetchone()
+            if row is None:
+                return None
+            db.execute("DELETE FROM sessions WHERE token_sha256=?", (digest,))
+            db.execute("DELETE FROM devices WHERE principal_id=?", (row["account_id"],))
+        return row["account_id"]
 
     def _event(self, db, sid, patient, kind, actor, text, reason=None):
         db.execute(
