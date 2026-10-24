@@ -41,6 +41,7 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `GET /propostas/{id}/parecer` | Parecer interno para profissional do caso. |
 | `POST /propostas/{id}/decisao` | Aprovação, rejeição com motivo ou pedido de informações. |
 | `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
+| `GET /solicitacoes/{id}/historico` | Trilha de eventos da solicitação, do mais recente ao mais antigo (spec 004). |
 
 OpenAPI em `/docs` contém campos e limites. Importar a fila selecionando de `fila.json`
 os campos de `QueuePatient`, incluindo `paciente_id` e `politica: "priorizacao-sem-espera-v1"`; não enviar critérios ou outros
@@ -72,6 +73,10 @@ original, e não implementa a extração automática descrita na feature separad
 A integração impede usar proposta documental ainda não aprovada como dado confirmado.
 
 ## Validade e retenção
+
+A trilha de histórico (tabela `events`) é a exceção: não expira, guarda só tipo,
+texto fixo, responsável, motivo e data e hora, e nunca conteúdo de documento, nome ou
+CNS. A permissão de leitura usa o vínculo do evento com o paciente.
 
 Registros expiram em até sete dias. Proposta e decisão herdam o menor prazo entre
 fila e evidências; um reprocessamento não renova a validade. Registros expirados são
