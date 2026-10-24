@@ -7,7 +7,7 @@ Status: aprovado para implementação pelo usuário em 2026-10-24
 
 Módulo Python `tribunal` dentro da API FastAPI do backend. Quando uma proposta de mudança de posição é criada, o serviço do tribunal:
 
-1. Roda as travas determinísticas (regra de ouro, limite de elevação, não ultrapassar quem tem prioridade maior e mais espera). Se a proposta viola alguma trava, ela é barrada ou reduzida antes de gastar chamadas de LLM, e o motivo vai para o parecer.
+1. Roda as travas determinísticas (regra de ouro, limite de elevação, hierarquia, sem preferência por espera). Se a proposta viola alguma trava, ela é barrada ou reduzida antes de gastar chamadas de LLM, e o motivo vai para o parecer.
 2. Monta o contexto do caso já mascarado (sem nome, CNS ou município) e chama os três agentes em paralelo (`asyncio.gather`). Cada agente é uma chamada ao LLM com um prompt de papel próprio e uma saída estruturada validada por um schema.
 3. Consolida os três votos por maioria, em uma função pura.
 4. Se a recomendação for ajustar, passa a posição sugerida pelas travas de novo, porque os agentes não podem furar as regras.
@@ -17,7 +17,7 @@ Se alguma chamada falhar ou estourar o tempo limite, a proposta fica em `aguarda
 
 ## Dados e interfaces
 
-**Contexto enviado aos agentes (mascarado):** id pseudônimo da solicitação, idade, sexo, CID principal e secundário, ASA, dor (EVA), limitação funcional, comorbidades, dias em fila, prioridade da regulação, posição atual, posição proposta, critérios que motivaram a mudança e as evidências (eventos clínicos e trechos de laudo). Também vai um resumo dos pacientes que seriam ultrapassados (CID, prioridade e dias em fila, sem identificação).
+**Contexto atual enviado aos agentes (mascarado):** identificador pseudônimo, CID, pontuação e posição da solicitação e dos afetados; evidências estruturadas aprovadas com IDs pseudônimos, travas e motivo de convocação. Sem dias de fila, nome, CNS, município ou trechos livres. Dados adicionais para BRAN dependem da revisão abaixo.
 
 **Saída de cada agente (schema):**
 
@@ -43,7 +43,7 @@ sem_comprovacao: booleano (só relato do paciente, sem exame)
 
 | Decisão | Alternativas consideradas | Motivo |
 |---|---|---|
-| Provedor: Google Gemini, modelo Flash do plano gratuito (via SDK `google-genai`) | Groq (gratuito, modelos abertos), OpenRouter `:free`, Ollama local, Claude (pago) | O time quer custo zero. O plano gratuito do Gemini tem a cota mais folgada entre as opções gratuitas e saída estruturada por schema. O Groq limita a 8 mil tokens por minuto, e um caso usa cerca de 11 mil. O OpenRouter limita a 50 requisições por dia, cerca de 16 casos. O Ollama depende do hardware de quem roda a demo. |
+| Provedor configurável por ambiente; adaptador existente preservado | Seleção adiada | Não escolher modelo nem realizar chamadas externas nesta revisão. |
 | Nome do modelo e chave em variáveis de ambiente (`GEMINI_MODEL`, `GEMINI_API_KEY`) | Fixar no código | Os modelos e as cotas gratuitas mudam com frequência; dá para trocar sem commit. |
 | Travas antes e depois dos agentes, em código puro | Pedir aos agentes que respeitem as regras | A spec exige que as travas sejam determinísticas e impossíveis de furar. Rodar antes também economiza cota. |
 | Três chamadas em paralelo | Em sequência | O tempo total do caso fica igual ao da chamada mais lenta, o que importa na demo ao vivo. |
@@ -67,3 +67,31 @@ Configurar GEMINI_MODEL explicitamente, sem supor cota ou gratuidade. API local 
 ## Complemento autorizado em 2026-10-24
 
 Implementar identidades com permissões por paciente, registro documental com evidência e revisão auditável, retenção máxima de sete dias e bloqueio de tentativas quando referências perderem validade. Tokens de acesso são individuais e carregados da configuração local; decisões usam identidade autenticada. A integração documental registra fonte/trecho/valor e aprovação, sem implementar OCR nem chamar Gemini nesta etapa. Dados aprovados são comparados ao registro do servidor; o cliente não pode declarar aprovação por conta própria. Limpeza abrange conteúdo dependente, relatórios e arquivos gerados em diretórios registrados, preservando originais. Testes usam relógio injetado. Atualizar documentação e verificar todos os critérios técnicos; revisão clínica não é fabricada.
+
+## Revisão BRAN e parecer especializado — plano em revisão
+
+A implementação de retirada da espera usa somente regra oncológica, hierarquia e
+limite de elevação. Dias em fila não são enviados ao provedor. A ampliação abaixo
+é uma entrega posterior; nenhum prompt de provedor foi alterado nesta etapa.
+
+1. Acrescentar à manifestação de Contestação um bloco `bran` com quatro dimensões:
+   benefícios, riscos, alternativas e consequências de não realizar/adiar. Cada
+   dimensão contém situação (`documentado`, `ausente` ou `conflitante`), resumo e
+   referências a evidências aprovadas do caso. Campos ausentes não são completados.
+2. Antes de implementar, revisar com a equipe quais dados aprovados serão necessários:
+   o contexto atual tem códigos de evidência e não contém informação suficiente para
+   responder a todas as perguntas. Não ampliar o envio externo com texto livre sem
+   revisão de minimização/mascaramento. Campos sem evidência retornam `ausente`.
+3. Rever o contrato e a proveniência para eventual parecer especializado, com origem,
+   protocolo, data e revisão profissional. O contrato atual não aceita um tipo livre
+   de parecer; não disfarçá-lo como exame para passar na validação.
+4. Acrescentar pendência explícita de revisão de indicação quando faltarem elementos.
+   Isso não muda o veredito por regra fixa, não cancela a solicitação nem recomenda
+   tratamento alternativo. Permanecem três agentes e decisão médica específica.
+5. Testar o contrato com provedor de teste: dimensões ausentes, referências de outro
+   caso, conflito, ausência de evidência, versão antiga e nenhuma exclusão automática.
+   Testes de contrato não comprovam qualidade clínica da resposta de um LLM real.
+
+Saída esperada: revisão de `Vote`, contexto e persistência, após aprovação deste
+complemento e da suficiência dos dados. Escolha/alteração de LLM e chamada real a
+Gemini continuam fora da implementação autorizada desta revisão da pontuação.

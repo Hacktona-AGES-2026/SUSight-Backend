@@ -6,7 +6,7 @@ Cada tarefa é pequena, verificável e vira um commit atômico.
 
 - [x] 1. Criar o esqueleto do módulo `tribunal` e os modelos Pydantic (contexto do caso, manifestação do agente, parecer, situação da proposta).
 - [x] 2. Implementar o mascaramento do contexto (remove nome, CNS e município) com teste.
-- [x] 3. Implementar as travas determinísticas (regra de ouro, limite de elevação configurável, não ultrapassar quem tem prioridade maior e mais espera) com testes, incluindo o caso da regra de ouro com três votos `a_favor`.
+- [x] 3. Implementar as travas determinísticas (regra de ouro, limite de elevação configurável, hierarquia; a trava antiga de espera foi retirada na revisão da spec 002) com testes, incluindo o caso da regra de ouro com três votos `a_favor`.
 - [x] 4. Implementar a consolidação por maioria (voto vencido em destaque; três votos diferentes resultam em ajustar) com testes.
 - [x] 5. Escrever os prompts dos três agentes em português, proibindo diagnóstico e linguagem alarmante e exigindo citar evidências.
 - [x] 6. Implementar o cliente do Gemini com saída estruturada, tempo limite por chamada e validação da resposta.
@@ -29,3 +29,12 @@ A tarefa 12 depende de credenciais e revisão humana. Sem chamada real realizada
 - [x] Exigir citação de evidência nos votos favoráveis e de ajuste.
 
 O teste real da tarefa 12 permanece fora da solicitação atual. Não houve chamada externa.
+
+## Revisão planejada de BRAN
+
+- [x] Retirar espera das travas e do contexto externo; testar invariância temporal.
+- [x] Versionar política/fila e impedir aplicação de propostas desatualizadas, preservando pareceres anteriores para auditoria.
+- [ ] Revisar o complemento de plano de BRAN e suficiência dos dados aprovados com a equipe.
+- [ ] Após revisão, implementar contrato BRAN e pendência de indicação, sem exclusão autônoma.
+- [ ] Após revisão, admitir parecer especializado com proveniência específica.
+- [ ] Verificar contratos e autorização com provedor de teste, sem chamadas externas.
