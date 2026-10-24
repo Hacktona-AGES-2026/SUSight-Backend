@@ -158,3 +158,11 @@ def test_command_line_creates_account_with_password_only_in_a_private_file(tmp_p
         accounts.create(database, "PAC7", "paciente", ["PAC7"], tmp_path / "outro.senha")
     with pytest.raises((ValueError, FileExistsError)):
         accounts.create(database, "PAC8", "paciente", ["PAC8"], secret)
+
+
+def test_queue_reports_the_full_size_even_when_the_user_sees_one_row(history_api):
+    client, _ = history_api
+    client.headers["Authorization"] = "Bearer patient"
+    body = client.get("/fila").json()
+    assert [r["solicitacao_id"] for r in body["pacientes"]] == ["20"]
+    assert body["total"] == 20
