@@ -16,7 +16,8 @@ def pseudonym(sid):
     return hashlib.sha256(sid.encode()).hexdigest()[:16]
 
 
-def masked_context(proposal, queue, guarded):
+def masked_context(proposal, queue, guarded, details=None):
+    details = details or {}
     sid = proposal["solicitacao_id"]
     patient = next(r for r in queue if r["solicitacao_id"] == sid)
     lo, hi = sorted([patient["posicao"], guarded["posicao"]])
@@ -36,7 +37,13 @@ def masked_context(proposal, queue, guarded):
         "paciente": mask(patient),
         "posicao_proposta": guarded["posicao"],
         "afetados": [mask(r) for r in queue if lo <= r["posicao"] <= hi and r["solicitacao_id"] != sid],
-        "evidencias": [{**e, "evidencia_id": pseudonym(e["evidencia_id"])} for e in proposal["evidencias"]],
+        "evidencias": [
+            {**e, "evidencia_id": pseudonym(e["evidencia_id"]), "conteudo": details.get(e["evidencia_id"])}
+            for e in proposal["evidencias"]
+        ],
+        # What a read document changed: `criterios` above are the patient's before the document.
+        "criterios_apos_o_documento": (proposal.get("reavaliacao") or {}).get("criterios"),
+        "classe_apos_o_documento": (proposal.get("reavaliacao") or {}).get("swalis"),
         "travas": guarded["travas"],
         # Reason the doctor gave when sending the proposal back; empty on the first round.
         "devolutiva_medico": proposal.get("devolutiva", ""),
@@ -95,7 +102,11 @@ class Tribunal:
                         },
                     )
                     return self.store.get(pid)
-                context = masked_context(body, queue, checked)
+                details = {}
+                for e in body["evidencias"]:
+                    stored = self.store.evidence(e["evidencia_id"])["body"]
+                    details[e["evidencia_id"]] = {k: stored[k] for k in ("campo", "valor", "trecho")}
+                context = masked_context(body, queue, checked, details)
                 votes = await asyncio.gather(
                     *(
                         asyncio.wait_for(self.provider.analyze(a, context), timeout=self.timeout)
