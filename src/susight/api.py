@@ -574,6 +574,16 @@ def create_app(
         items = store.list_proposals(sorted(set(situacao)), patients)
         return {"total": len(items), "propostas": items}
 
+    @app.get("/propostas/{pid}")
+    def proposal_detail(pid: str, principal=principal_dependency):
+        professional(principal)
+        try:
+            body = store.proposal_detail(pid)
+        except KeyError:
+            raise HTTPException(404, "Proposta nao encontrada") from None
+        permit_case(body["solicitacao_id"], principal)
+        return body
+
     @app.post("/propostas", status_code=201)
     def create_proposal(body: EvidenceReferences, principal=principal_dependency):
         professional(principal)
