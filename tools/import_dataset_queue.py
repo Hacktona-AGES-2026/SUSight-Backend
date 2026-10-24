@@ -24,6 +24,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--events", help="eventos_clinicos.csv do dataset, para o historico do paciente da demo"
     )
+    parser.add_argument(
+        "--justifications", help="fila_priorizada.csv da pontuacao, com a justificativa de cada posicao"
+    )
     parser.add_argument("--model", help="funcao_representativa.json da pontuacao, para reavaliar um paciente")
     parser.add_argument("--password", default="demo1234")
     parser.add_argument("--patient-id", default="PAC-00152")
@@ -49,6 +52,11 @@ if __name__ == "__main__":
                 "municipio": n.get("municipio"),
             }
     raw = json.loads(Path(args.queue).read_text())
+    if args.justifications:
+        with open(args.justifications, encoding="utf-8") as stream:
+            why = {r["solicitacao_id"]: r["justificativa"] for r in csv.DictReader(stream)}
+        for r in raw:
+            r["justificativa"] = why.get(r["solicitacao_id"], "")
     for r in raw:
         r |= {k: v for k, v in identity.get(r["solicitacao_id"], {}).items() if v}
         if porte.get(r["solicitacao_id"]):

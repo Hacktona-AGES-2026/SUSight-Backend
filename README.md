@@ -23,6 +23,7 @@ uv run --no-sync python -m susight.scoring --input-dir /tmp/tratado \
 uv run --no-sync python tools/import_dataset_queue.py --queue /tmp/pontuado/fila.json \
   --database data/dataset.sqlite3 --treated /tmp/tratado \
   --procedures /caminho/dataset/procedimentos.csv --events /caminho/dataset/eventos_clinicos.csv \
+  --justifications /tmp/pontuado/fila_priorizada.csv \
   --model /tmp/pontuado/funcao_representativa.json
 ```
 
