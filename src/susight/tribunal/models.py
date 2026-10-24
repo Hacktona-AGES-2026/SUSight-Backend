@@ -32,6 +32,10 @@ class QueuePatient(Strict):
     criterios: (
         dict[Literal["limitacao", "asa", "dor", "comorbidades", "deterioracao", "distancia"], float] | None
     ) = None
+    # Identification for the doctor's screens; never sent to the tribunal agents or the extractor.
+    nome: str | None = Field(default=None, max_length=200)
+    procedimento: str | None = Field(default=None, max_length=200)
+    municipio: str | None = Field(default=None, max_length=100)
     porte: Literal["pequeno", "medio", "grande", "especial"] | None = None
     swalis: Literal["A1", "A2", "B", "C", "D"] | None = None
     prioridade_regulacao: str | None = Field(default=None, max_length=20)

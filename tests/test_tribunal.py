@@ -341,3 +341,17 @@ async def test_rejection_stops_returning_after_three_rounds(setup):
     await Tribunal(setup, FakeProvider()).process(pid)
     setup.decide(pid, "medico-test", "rejeitar", "Ainda sem comprovacao.")
     assert setup.list_proposals(["aguardando_tribunal"], None) == []
+
+
+def test_queue_keeps_the_patient_name_procedure_and_city_for_the_doctor(tmp_path):
+    rows = queue(3)
+    rows[0] |= {"nome": "Pedro Freitas Medeiros", "procedimento": "Herniorrafia inguinal", "municipio": "Porto Alegre"}
+    store = Store(tmp_path / "names.sqlite")
+    store.import_queue(validate_queue(rows), 0)
+    first = store.queue()[1][0]
+    assert (first["nome"], first["procedimento"], first["municipio"]) == (
+        "Pedro Freitas Medeiros",
+        "Herniorrafia inguinal",
+        "Porto Alegre",
+    )
+    assert store.queue()[1][1]["nome"] is None
