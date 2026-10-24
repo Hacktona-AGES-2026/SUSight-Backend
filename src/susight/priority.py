@@ -9,7 +9,9 @@ def priority_group(patient):
 
     The class is clinical-only (see scoring.prepare); waiting time never enters.
     """
-    if not patient["oncologico"] and (patient["sem_urgencia"] or patient.get("sem_urgencia_verificador", False)):
+    if not patient["oncologico"] and (
+        patient["sem_urgencia"] or patient.get("sem_urgencia_verificador", False)
+    ):
         return NO_URGENCY
     swalis = patient.get("swalis")
     return SWALIS_ORDER.index(swalis) if swalis in SWALIS_ORDER else 0
