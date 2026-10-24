@@ -27,7 +27,7 @@ A posição sobe conforme o quanto o paciente está sendo prejudicado por espera
 - tempo de espera;
 - deterioração durante a espera.
 
-A prioridade manual da regulação é informativa, sem peso na pontuação (spec 002). As preferências de swing e ROR dependem de validação; regras de equidade incluem limite de elevação de 10% por reavaliação e a regra de ouro oncológica. Há conflito de modelagem no dataset completo, descrito em `docs/backend-validation.md`.
+A prioridade manual da regulação é informativa, sem peso na pontuação (spec 002). As preferências de swing e ROR dependem de validação; regras de equidade incluem limite de elevação de 10% por reavaliação e a regra de ouro oncológica. A hierarquia obrigatória antecede a comparação ROR dentro de grupos; a execução completa passou no verificador oficial. Os pesos continuam demonstrativos, conforme `docs/backend-validation.md`.
 
 ## Fluxo do sistema
 
@@ -103,7 +103,7 @@ Tasks: https://github.com/orgs/Hacktona-AGES-2026/projects/6. O título de cada 
 
 ## Decisões em aberto
 
-1. Resolver o conflito entre regras rígidas e ordem necessária da ROR no dataset completo.
+1. Validar clinicamente a hierarquia, escalas e preferências demonstrativas antes de uso real.
 2. Pesos dos critérios e regras de equidade.
 3. Tratamento do dataset: limpeza, deduplicação e campos de prioridade e tempo de espera.
 4. Integração do Backend Python/FastAPI/SQLite com o setup da equipe e validação do provedor de IA.

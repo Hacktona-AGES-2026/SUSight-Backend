@@ -58,7 +58,7 @@ sem_comprovacao: booleano (só relato do paciente, sem exame)
 - **Cotas e nomes de modelo do plano gratuito mudam.** Mitigação: conferir no AI Studio antes da demo; o modelo fica em variável de ambiente.
 - **O LLM pode devolver JSON fora do schema.** Mitigação: validar com Pydantic; uma resposta inválida conta como falha e entra nas novas tentativas.
 - **O LLM pode escrever algo que soe como diagnóstico ou alarme.** Mitigação: o prompt de cada agente proíbe isso explicitamente, e um teste confere que o parecer não contém termos proibidos.
-- **O valor do limite de elevação ainda não foi definido** (#6). Mitigação: fica em configuração com um valor provisório marcado no código até a #6 fechar.
+- **Limite de elevação:** 10% da fila ativa, arredondado para baixo, com prevalência da regra de ouro e hierarquia compartilhada com a pontuação.
 
 ## Atualização para implementação
 

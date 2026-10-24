@@ -19,8 +19,13 @@ Cada tarefa corresponde a um commit atômico com suas verificações. Executar a
 
 ## Conclusão
 
-- [ ] Conferir os 17 critérios de aceite da spec e registrar resultados no PR da implementação.
-- [ ] Revisar `DECISOES.md` e todas as exclusões/consolidações da execução de aceitação.
-- [ ] Verificar que a spec 002 consegue consumir medidas, evidências, imputações e pendências do contrato publicado.
+- [x] Conferir os critérios técnicos e registrar resultados e limitações em docs/backend-validation.md.
+- [x] Conferir tecnicamente DECISOES.md e a fonte de cada uma das 16 exclusões; manter 22 grupos candidatos separados para revisão.
+- [ ] Obter aceite do responsável da equipe sobre as exclusões e ambiguidades antes de uso real.
+- [x] Verificar consumo pela pontuação, cobertura reconciliada e verificador oficial na base completa.
 
 Os caminhos acima eram propostos; a organização executada é `core.py` e `pipeline.py`, detalhada em `../../docs/dataset-treatment.md`. Implementação concluída e executada; a revisão humana das exclusões e a aceitação clínica são pendências do PR.
+
+- [x] Adicionar validade e permissões privadas às saídas geradas e limpeza segura por manifesto.
+- [x] Não excluir solicitação atual por encerramento de evento histórico.
+- [x] Conferir integridade dos originais e reprodução da execução sem LLM.

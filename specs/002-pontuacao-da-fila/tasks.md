@@ -9,5 +9,8 @@ Plano: ./plan.md
 - [x] Aplicar precedências rígidas e exportar CSV reproduzível.
 - [x] Testar solver, equidade, empates e verificador oficial na integração sintética.
 
-- [ ] Validar preferências clínicas e resolver o conflito de modelagem da base completa descrito em `../../docs/backend-validation.md`.
-- [ ] Exportar a base completa aprovada e executar o verificador oficial.
+- [x] Resolver o conflito técnico por hierarquia explícita antes da ROR, com regressão de dominância e distinção da origem da relação.
+- [ ] Obter validação clínica das escalas e preferências; os escores são demonstrativos.
+- [x] Exportar a base completa da demonstração (925 posições) e executar o verificador oficial com resultado OK.
+- [x] Repetir a execução e conferir CSV, relações, função e decisões reproduzíveis.
+- [x] Publicar origem dos swings, faixas, comparação por grupo e prazo de expiração sem atribuição bibliográfica indevida.

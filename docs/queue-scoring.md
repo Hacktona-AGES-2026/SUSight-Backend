@@ -28,10 +28,15 @@ quando existem diferenças estritamente positivas e negativas. Um empate necess�
 não é chamado de incerteza. Valores além dos limites são saturados e a configuração
 precisa escolher limites coerentes com o swing comparado.
 
-As travas geram precedências e uma ordenação topológica estável. Se contradizem
-uma ordem necessária, uma comparação de referência ou outra trava, a publicação
-falha explicitamente. Nenhum arquivo parcial é apresentado como fila válida.
-Classificações da janela não certificam pares que não foram calculados.
+A ordem é lexicográfica: o grupo protegido (CID C* e os casos que não estão no
+grupo sem urgência) antecede o grupo sem urgência. As comparações de utilidade,
+necessidade e dominância por espera são feitas dentro do grupo. Entre grupos, a
+relação tem origem `hierarquia_regra_de_ouro` e extremos aditivos null. Não se
+interpreta a pontuação bruta de um grupo como prioridade superior à do outro.
+Comparação de referência contrária à hierarquia é rejeitada; restrições incompatíveis
+dentro dos grupos continuam bloqueando publicação. Essa convenção resolve a
+contradição de modelagem da configuração anterior sem forjar pesos.
+A janela final certifica apenas os pares efetivamente calculados.
 
 `sem_urgencia` é a avaliação conservadora dos dados observados.
 `sem_urgencia_verificador` é exclusivamente a condição técnica do verificador do
@@ -46,3 +51,17 @@ avaliação oficial sem tratar imputação como evidência de ausência de urgê
 Casos incertos não convocam LLM automaticamente na geração inicial.
 
 Referência do solver: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-highs.html
+
+## Swing demonstrativo e aceitação
+
+`tools/acceptance.py` registra swings ilustrativos: deterioração 100, espera 90,
+limitação 80, dor 70, comorbidades 60, ASA 40 e distância 20. Normaliza a soma e usa
+faixas de 75% a 125% de cada peso normalizado; dez pares monotonicamente dominantes
+dentro do grupo verificam a integração. Essa escolha é uma hipótese de protótipo,
+não uma elicitação médica nem dado atribuído a SWALIS/WCWL/CPAC. Fontes, faixas,
+escalas e os pares aparecem no relatório e precisam de revisão antes de uso real.
+
+O manifesto das saídas tem prazo máximo de sete dias e herda a validade dos dados
+tratados. CSVs e relatórios são privados ao usuário local. Limpeza é feita apenas
+por manifesto e não remove o dataset fonte. Registros originais ausentes continuam
+identificáveis; nunca se transforma imputação em evidência documental observada.

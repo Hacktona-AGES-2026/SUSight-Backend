@@ -18,3 +18,14 @@ Cada tarefa é pequena, verificável e vira um commit atômico.
 - [ ] 12. Rodar um caso real do dataset contra o Gemini e conferir manualmente cada critério de aceite.
 
 A tarefa 12 depende de credenciais e revisão humana. Sem chamada real realizada; ver `../../docs/backend-validation.md`.
+
+## Complemento técnico concluído
+
+- [x] Restringir operações por identidade, papel e paciente.
+- [x] Vincular evidência a documento e exigir revisão profissional no registro do servidor.
+- [x] Auditar revisão, decisão e cancelamento pela identidade autenticada.
+- [x] Impedir publicação ou nova tentativa após expiração/cancelamento, inclusive durante chamada.
+- [x] Eliminar conteúdo expirado e testar migração conservadora de banco legado.
+- [x] Exigir citação de evidência nos votos favoráveis e de ajuste.
+
+O teste real da tarefa 12 permanece fora da solicitação atual. Não houve chamada externa.

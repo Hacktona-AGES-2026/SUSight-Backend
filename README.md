@@ -30,13 +30,26 @@ uv run --no-sync python tools/verificar_fila_priorizada.py \
   /caminho/pontuado/fila_priorizada.csv --dataset /caminho/dataset
 ```
 
-A configuração em `examples/preferences-demo.json` usa IDs do dataset sintético
-fornecido e premissas **demonstrativas**. Não representa pesos extraídos de literatura
-nem elicitação validada. No dataset completo ela revela um conflito com a regra de
-ouro, documentado em [validação](docs/backend-validation.md); a exportação é bloqueada.
+A configuração em `examples/preferences-demo.json` contém escores de swing e faixas
+**demonstrativas**, sem validação clínica nem atribuição de percentuais à literatura.
+A hierarquia rígida é aplicada antes da ROR; a base inteira gerou 925 posições e
+passou no verificador oficial. Ver [validação](docs/backend-validation.md).
 
-Para a API, copiar `.env.example` para `.env`, configurar token e, para chamadas reais,
-`GEMINI_API_KEY` e `GEMINI_MODEL`:
+Para reproduzir a aceitação técnica, sem chamadas de IA:
+
+```sh
+uv run --no-sync python tools/acceptance.py \
+  --dataset /caminho/dataset --output-root outputs/aceitacao-nova
+```
+
+Para a API, criar identidades e copiar `.env.example` para `.env`:
+
+```sh
+uv run --no-sync python -m susight.provision --directory data/identidades --patient PAC-EXEMPLO
+```
+
+Os tokens individuais ficam em arquivos privados e não são impressos. Os vínculos
+de paciente devem corresponder à fila importada. Depois iniciar o serviço:
 
 ```sh
 uv run --no-sync --env-file .env uvicorn susight.api:create_app \
@@ -46,13 +59,13 @@ uv run --no-sync --env-file .env uvicorn susight.api:create_app \
 Contratos em `/docs`. Rotas clínicas exigem `Authorization: Bearer <token>`.
 O processamento em segundo plano e a recuperação de propostas usam SQLite e um
 único processo da API. Sem provedor configurado, o tribunal registra indisponibilidade
- e tenta novamente; nunca substitui o parecer por resposta simulada.
+e tenta novamente; nunca substitui o parecer por resposta simulada.
 
 ## Fluxo
 
 1. Tratar o dataset e revisar pendências/exclusões em `DECISOES.md`.
 2. Definir e validar as preferências; gerar a fila apenas se as restrições forem compatíveis.
-3. Importar a fila válida pela API; criar propostas de casos incertos ou conflitantes.
+3. Importar a fila válida pela API, registrar e revisar as fontes/evidências e criar propostas usando seus IDs aprovados.
 4. Consultar o parecer; o médico decide, e o servidor revalida versão e travas antes de aplicar.
 
 Detalhes: [tratamento](docs/dataset-treatment.md), [pontuação](docs/queue-scoring.md),

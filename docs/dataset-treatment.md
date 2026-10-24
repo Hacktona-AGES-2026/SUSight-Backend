@@ -42,3 +42,15 @@ distância usa mediana aritmética. Sem população válida, fica pendência.
 `dataset/pipeline.py` integra eventos, atividade, imputações e publicação dos
 relatórios. `rules.json` versiona padrões; `__main__.py` expõe a CLI. São os passos
 do plano agrupados em módulos, sem dependência da API nem de LLM.
+
+## Retenção e aceitação técnica
+
+`manifesto.json` inclui instantes de criação/expiração para cópias temporárias, com
+prazo máximo de sete dias. Diretórios são 0700 e arquivos 0600. A limpeza por manifesto
+preserva a fonte original e exige manutenção ativa; campos clínicos de evidência
+documental não são preenchidos pela mediana desta etapa.
+
+`tools/acceptance.py` produz uma conferência rastreável de todas as 16 exclusões,
+com IDs das evidências, e mantém as 44 solicitações de 22 grupos candidatos a duplicata
+para revisão. Nenhuma equivalência é presumida apenas para reduzir a fila. A conferência
+é técnica e sintética, não uma assinatura de revisão profissional.

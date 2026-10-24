@@ -19,11 +19,11 @@ configurável (padrão 1, incluindo todos os vizinhos) recebe mínimos e máximo
 diferença de valor. Necessidade fraca, empate necessário e reversibilidade estrita
 são distintos: empate não é marcado como incerteza só por permitir ambas as ordens.
 
-Travas da regra de ouro e dominância por prioridade/espera geram precedências para
-ordenação topológica estável. Precedência que contraria uma preferência necessária
-é conflito explícito: não publicar fila contraditória. Registrar relações calculadas;
-pares fora da janela não são apresentados como certificados. Ao aplicar travas,
-recalcular vizinhos finais. A função representativa pertence ao conjunto compatível.
+A hierarquia de elegibilidade antecede a utilidade: protegido antes de sem urgência.
+A dominância por prioridade/espera e as relações ROR são exigidas dentro do grupo.
+Relações entre grupos são precedências explícitas, com extremos de utilidade null.
+Comparações de referência contrárias à hierarquia falham; as compatíveis entre grupos
+não restringem pesos. Funções e fontes são preservadas e os vizinhos finais recalculados.
 
 SWALIS: classificação determinística versionada baseada nas descrições do arquivo
 adaptado fornecido no desafio; conflitos/dados ausentes geram revisão. Valores de

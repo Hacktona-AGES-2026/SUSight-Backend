@@ -1,27 +1,53 @@
-# API e tribunal
+# API, acesso e evidências da demonstração
 
-Executar a factory `susight.api:create_app` com um worker. Configurar
-`SUSIGHT_API_TOKEN` (mínimo 16 caracteres) e `SUSIGHT_DATABASE`. O token é um controle
-compartilhado da demo local; não implementa login gov.br, CRM ou identidade médica
-verificada. Cada decisão registra o nome informado pelo profissional.
+Executar `susight.api:create_app` com um worker. O ambiente aceita apenas dados
+sintéticos; os papéis locais não implementam identidade gov.br/CRM verificada.
 
-| Método/rota | Comportamento |
+## Identidades e permissões
+
+```sh
+uv run --no-sync python -m susight.provision --directory data/identidades --patient PAC-EXEMPLO
+```
+
+O comando cria `access.json` com hashes dos tokens e três arquivos `.token`, todos
+privados ao proprietário. Não imprime os valores dos tokens. Configurar
+`SUSIGHT_ACCESS_FILE=data/identidades/access.json`; não versionar esse diretório.
+O operador provisiona os vínculos de paciente na configuração local; a API não aceita
+papel ou escopo declarado pelo cliente.
+
+- Administrador: importação da fila e manutenção dos casos sintéticos.
+- Médico: acesso, revisão e decisão apenas nos pacientes atribuídos.
+- Paciente: consulta de seus próprios registros e registro de fonte/evidência proposta;
+  não pode aprovar evidência, obter debate interno nem decidir posição.
+
+`SUSIGHT_API_TOKEN` continua como acesso administrativo de bootstrap para compatibilidade,
+sem representar login de paciente. Com `SUSIGHT_ACCESS_FILE`, o token compartilhado
+não é usado. Rotas usam `Authorization: Bearer <token individual>`; `/health` é pública.
+Decisões e revisões gravam a identidade autenticada, não o nome declarado no corpo.
+
+## Rotas
+
+| Método/rota | Uso |
 |---|---|
-| `GET /health` | Estado do serviço, sem autenticação. |
-| `GET /fila` | Versão e pacientes da fila vigente. |
-| `PUT /fila` | Importa fila válida com `versao_esperada`; primeira importação usa 0. |
-| `POST /propostas` | Cria proposta ligada à versão da fila, com posição e evidências estruturadas. |
-| `POST /propostas/{id}/tribunal` | Solicita análise/reprocessamento; trava determinística pode barrar sem LLM. |
-| `GET /propostas/{id}/parecer` | Situação, tentativas, aviso e parecer persistido. |
-| `POST /propostas/{id}/decisao` | Aprova, rejeita com motivo ou pede informações; grava auditoria. |
+| `GET /fila` | Versão e registros permitidos ao usuário. |
+| `PUT /fila` | Importação administrativa, controle de versão e autoria. |
+| `POST /documentos` | Registro da fonte sintética por hash, solicitação, formato, tamanho e páginas. |
+| `GET /documentos/{id}` | Metadados da fonte, sujeitos à permissão e validade. |
+| `POST /evidencias` | Valor proposto, trecho, campo, página, confiança e referência à fonte. |
+| `GET /evidencias/{id}` | Evidência e histórico da revisão permitidos ao caso. |
+| `POST /evidencias/{id}/revisao` | Aprovação/rejeição pelo profissional autorizado, com justificativa. |
+| `POST /propostas` | Cria proposta usando somente IDs de evidências aprovadas no servidor. |
+| `POST /propostas/{id}/tribunal` | Análise ou reprocessamento de proposta válida. |
+| `GET /propostas/{id}/parecer` | Parecer interno para profissional do caso. |
+| `POST /propostas/{id}/decisao` | Aprovação, rejeição com motivo ou pedido de informações. |
+| `POST /propostas/{id}/cancelar` | Encerra trabalho pendente com justificativa auditável. |
 
-As rotas clínicas exigem header Bearer. OpenAPI em `/docs` documenta os schemas.
-Para importar `fila.json` da pontuação, selecionar por paciente apenas os campos do
-schema `QueuePatient`: `solicitacao_id`, `cid`, `dias_em_fila`, `pontuacao`,
-`oncologico`, `sem_urgencia`, `sem_urgencia_verificador` e `posicao`. Não enviar
-critérios ou outras chaves nessa importação: o schema rejeita campos extras.
+OpenAPI em `/docs` contém campos e limites. Importar a fila selecionando de `fila.json`
+os campos de `QueuePatient`, incluindo `paciente_id`; não enviar critérios ou outros
+campos extras. A ausência de `paciente_id` não concede visibilidade a usuários com
+escopo por paciente. Hierarquia e posições consecutivas são verificadas na importação.
 
-Exemplo de criação de proposta (com fila vigente na versão 1):
+Exemplo do corpo para criar proposta após revisar as evidências:
 
 ```json
 {
@@ -30,44 +56,53 @@ Exemplo de criação de proposta (com fila vigente na versão 1):
   "versao_fila": 1,
   "ordenacao_incerta": true,
   "evidencias_conflitantes": false,
-  "evidencias": [
-    {"evidencia_id": "EVT-EXEMPLO", "tipo": "biopsia", "resultado": "positivo", "data": "2026-10-01"}
-  ]
+  "evidencias_ids": ["EVT-EXEMPLO"]
 }
 ```
 
-Na demo, a aplicação chamadora autenticada fornece o indicador de incerteza e as
-evidências; não há upload de laudo, extração de documentos nem consulta automática
-do tribunal aos arquivos tratados. Esses fluxos pertencem a outras issues, ainda
-sem spec. Atualizar a classificação clínica de um paciente exige importar uma nova
-versão válida da fila antes de propor reposicionamento.
+A API rejeita conteúdo de evidência embutido nessa operação. Busca no registro
+aprovado tipo, resultado e data; confere o vínculo com a solicitação, a aprovação e
+validade. Campo null ou de baixa confiança não pode ser aprovado diretamente;
+corrigir exige novo registro, preservando a proposta e a revisão originais.
 
-## Gemini e segurança das decisões
+O registro documental desta etapa é de **proveniência**, não upload/OCR: o hash é
+informado pelo sistema que detém o arquivo. O profissional precisa conferir o trecho
+contra a fonte. A API não afirma que verificou automaticamente os bytes ou o texto
+original, e não implementa a extração automática descrita na feature separada.
+A integração impede usar proposta documental ainda não aprovada como dado confirmado.
 
-Configurar `GEMINI_API_KEY` e `GEMINI_MODEL` conforme a conta disponível. Modelo/cota
-não são presumidos. O adaptador usa `google-genai` com saída JSON validada por
-Pydantic, tempo limite de 30 segundos e três chamadas paralelas. Não usa ferramentas
-nem execução de comandos do modelo; o "terminal" das fotos não foi definido como
-parte desta spec e não é implementado como execução arbitrária.
+## Validade e retenção
 
-O contexto contém pseudônimo, CID, espera, pontuação, posições e códigos estruturados
-de evidências. Nome, CNS, município e textos livres não são enviados. Isso limita os
-dados compartilhados e não é uma declaração de anonimização clínica completa.
-Respostas têm validação de papel, referências, posição e um filtro lexical básico;
-a ausência de diagnóstico/alarme ainda exige conferência humana do conteúdo.
+Registros expiram em até sete dias. Proposta e decisão herdam o menor prazo entre
+fila e evidências; um reprocessamento não renova a validade. Registros expirados são
+removidos junto às dependências; não são publicados pareceres de referência expirada.
+Cancelamento durante chamada também impede que o retorno reative a proposta.
 
-Falhas persistem em SQLite: backoff de 5 segundos a 300 segundos; na terceira falha,
-aviso `tribunal_indisponivel`. Sem chave ou modelo, o mesmo fluxo registra a falha,
-sem gerar parecer fictício. Ao reiniciar o processo único, propostas interrompidas
-são recolocadas na fila. Não executar vários workers ou instâncias no mesmo banco.
+Limpeza do banco ocorre nas operações e em manutenção periódica do processo.
+`SUSIGHT_ARTIFACT_ROOT=outputs` permite limpar diretórios gerados da demonstração;
+fora do serviço, executar `python -m susight.cleanup --root outputs`. Apenas diretórios
+marcados com manifesto válido são alvos; fontes CSV originais, diretórios sem marcação
+e alvos de links simbólicos são preservados. Saídas têm diretório 0700 e arquivos 0600.
+A remoção física depende de executar o serviço ou a rotina de manutenção; manter essa
+rotina ativa é requisito operacional. Backups externos precisam de política própria.
 
-Parecer é consultivo. A maioria define recomendação; três votos diferentes pedem
-ajuste; divergências ficam registradas. Relato isolado não sustenta voto favorável
-do agente de Evidências. Sugestões de ajuste passam novamente pelas travas.
+Migração de bancos legados sem instante de criação confiável expira conservadoramente
+os dados antigos e exige nova importação; o contador de versão não é reutilizado.
+SQLite usa `secure_delete`, mas isso não é promessa de apagamento forense do dispositivo.
+Não executar múltiplos workers sobre o mesmo banco.
 
-Aprovação médica revalida versão e travas e aplica mudança em transação junto à
-auditoria. Discordar de recomendação negativa exige justificativa. Mudança da versão
-invalida a proposta: criar nova proposta para análise. Rejeição registra o motivo;
-a reavaliação automática após rejeição pertence à issue #9, fora das specs implementadas.
+## Tribunal sem mudança no provedor
 
-Referência do provedor: https://ai.google.dev/gemini-api/docs/generate-content/structured-output
+O cliente existente continua configurável por `GEMINI_API_KEY`/`GEMINI_MODEL`, sem
+presumir modelo ou cota. Nesta entrega não foi feito teste real nem chamada externa.
+Testes usam transporte/cliente substituído apenas no ambiente de testes.
+
+Cada chamada tem limite de 30 segundos. Falhas mantêm a proposta retida, com espera
+de cinco a 300 segundos; a terceira falha exibe indisponibilidade. Identidade de agente,
+posição e referências são conferidas; apoio ou ajuste sem citar evidência é inválido.
+O contexto externo contém somente pseudônimos e códigos aprovados, sem os trechos
+originais, valores livres, nome ou CNS. A validação lexical não é revisão clínica.
+
+O médico pode discordar do parecer mediante justificativa, respeitando as travas.
+Somente sua decisão explícita e transacional muda a fila. Mudança de versão exige
+nova análise. Reavaliação automática após rejeição continua fora desta feature.
