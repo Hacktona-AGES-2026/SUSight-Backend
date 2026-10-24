@@ -56,6 +56,15 @@ LLM, OCR ou upload. Chamadas reais a Gemini permanecem fora do escopo.
 - [x] 6.4 Atualizar exemplos e relatório de validação, distinguindo resultados técnicos de revisão clínica pendente.
 - [ ] 6.5 Fazer revisão humana do resultado; atualizar o PR para `dev`, sem coautoria e sem realizar merge.
 
+## 7. Camada SWALIS no grupo protegido
+
+- [x] 7.1 Atualizar a spec: classe SWALIS (A1 → D) como precedência rígida dentro do grupo protegido, sem espera nem prazo.
+- [x] 7.2 Implementar em `priority_group` e nomear a origem `hierarquia_swalis` nas relações e travas.
+- [x] 7.3 Regressões: classe anterior vence utilidade maior; comparação de referência contrária à classe é rejeitada; invariância à espera mantida.
+- [x] 7.4 Regenerar as dez comparações demonstrativas dentro da mesma classe.
+- [x] 7.5 Dataset completo: verificador oficial OK; oncológicos de mediana 518 para 146, todos nas 244 primeiras posições; CSV idêntico em duas execuções.
+- [ ] 7.6 Revisar com quem conhece a regulação os limiares de dor (7 e 4) e as regras de A1 e A2.
+
 ## Evidências desta execução
 
 - Política sem espera aceita tecnicamente: 70 testes, Ruff e verificador original.

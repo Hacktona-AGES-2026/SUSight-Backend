@@ -78,12 +78,12 @@
   "comparacoes": [
     {
       "antes": "SOL-2022-00002",
-      "depois": "SOL-2022-00005",
+      "depois": "SOL-2022-00045",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00003",
-      "depois": "SOL-2022-00047",
+      "depois": "SOL-2023-00033",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
@@ -93,7 +93,7 @@
     },
     {
       "antes": "SOL-2022-00007",
-      "depois": "SOL-2022-00005",
+      "depois": "SOL-2022-00019",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "antes": "SOL-2022-00012",
-      "depois": "SOL-2022-00005",
+      "depois": "SOL-2022-00045",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
@@ -113,12 +113,12 @@
     },
     {
       "antes": "SOL-2022-00018",
-      "depois": "SOL-2022-00014",
+      "depois": "SOL-2024-00014",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {
       "antes": "SOL-2022-00019",
-      "depois": "SOL-2022-00005",
+      "depois": "SOL-2022-00057",
       "fonte": "Referencia sintetica por dominancia monotona dentro do grupo; nao elicitacao medica"
     },
     {

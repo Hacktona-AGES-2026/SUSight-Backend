@@ -40,7 +40,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 
 ### Ordenação robusta
 
-8. A ordenação é hierárquica: primeiro o grupo protegido (CID C* ou não classificado como sem urgência), depois o grupo sem urgência clínica ou assim identificado pelo verificador. Essa precedência é rígida e não depende dos pesos. Dentro de cada grupo, o sistema considera todas as funções de valor aditivas compatíveis com as restrições. Comparações entre grupos são verificadas contra a hierarquia; não são usadas para ajustar os pesos. Uma comparação que contrarie a hierarquia é rejeitada explicitamente.
+8. A ordenação é hierárquica em dois níveis. Primeiro, o grupo protegido (CID C* ou não classificado como sem urgência) antecede o grupo sem urgência clínica ou assim identificado pelo verificador. Segundo, dentro do grupo protegido, a **classe SWALIS** (A1, A2, B, C, D, nessa ordem) é uma camada de precedência: toda solicitação de uma classe antecede as das classes seguintes. A classe é derivada só de dados clínicos (CID, biópsia positiva, dor, limitação e piora durante a espera); dias em fila, data de entrada e razão de prazo não participam. Essas precedências são rígidas e não dependem dos pesos. Dentro de cada classe, o sistema considera todas as funções de valor aditivas compatíveis com as restrições. Comparações entre grupos são verificadas contra a hierarquia; não são usadas para ajustar os pesos. Uma comparação que contrarie a hierarquia é rejeitada explicitamente.
 9. Para cada par de solicitações próximas na fila (a janela de proximidade é definida no plano), o sistema determina:
    - **ordem necessária:** A fica à frente de B em todas as ponderações compatíveis;
    - **ordem possível:** A fica à frente de B em pelo menos uma ponderação compatível.
@@ -52,7 +52,7 @@ O tribunal de IAs (spec 001) passa a ser usado nos casos incertos, onde a ordem 
 12. **Regra de ouro:** nenhum paciente com CID iniciado por `C` (normalizado, sem depender da flag) fica abaixo de um paciente sem urgência clínica. A definição de "sem urgência clínica" é no mínimo tão rigorosa quanto a do `verificar_fila_priorizada.py`.
 13. **Limite de elevação por reavaliação:** depois da fila inicial, uma reavaliação não sobe o paciente mais do que 10% do tamanho da fila ativa de uma vez (arredondado para baixo). A passagem pelo tribunal não dispensa esse limite. A regra de ouro prevalece sobre ele quando um CID `C*` validado exigir subida maior; uma biópsia positiva com CID ainda não `C*` gera revisão clínica e não reescreve o diagnóstico nem aciona silenciosamente essa exceção.
 14. **Retirada da trava dependente de espera:** a regra anterior de prioridade maior combinada com mais dias de espera foi retirada. A ordenação respeita a hierarquia, as relações necessárias da ROR e o limite de elevação, sem utilizar antiguidade para dar preferência.
-15. Nenhum peso compensa a precedência rígida. Entre grupos prevalece a hierarquia. Empates remanescentes usam identificação estável da solicitação, sem data de entrada ou dias de espera. A justificativa distingue precedência rígida de comparação ROR.
+15. Nenhum peso compensa a precedência rígida. Entre grupos e entre classes SWALIS do grupo protegido prevalece a hierarquia. Como a regra de ouro leva todo CID `C*` a A1 ou A2, a camada SWALIS nunca coloca um oncológico depois de um paciente sem urgência. Empates remanescentes usam identificação estável da solicitação, sem data de entrada ou dias de espera. A justificativa distingue precedência rígida de comparação ROR.
 
 ### Saída
 
@@ -86,6 +86,10 @@ A hierarquia resolve a contradição técnica identificada entre precedência e 
 - [ ] A ordem final respeita a hierarquia e as ordens necessárias dentro dos grupos; diferenças numéricas de ROR entre grupos não são apresentadas como prioridade superior.
 - [ ] O arquivo gerado passa no `verificar_fila_priorizada.py` sem erros (formato e regra de ouro).
 - [ ] Nenhuma trava de prioridade utiliza espera; entre grupos prevalece a precedência rígida e dentro deles são respeitadas as relações necessárias da ROR.
+- [ ] No grupo protegido, nenhuma solicitação de classe SWALIS posterior (por exemplo B) fica à frente de uma de classe anterior (por exemplo A2), qualquer que seja a utilidade aditiva.
+- [ ] Alterar a classe SWALIS por dados clínicos muda a posição; alterar só dias de espera, data de entrada ou razão de prazo não muda a classe nem a fila.
+- [ ] Uma comparação de referência que contrarie a precedência entre classes SWALIS é rejeitada, como as que contrariam a hierarquia entre grupos.
+- [ ] O relatório de aceitação informa a distribuição dos oncológicos por faixa de posição e por classe SWALIS.
 - [ ] Toda linha tem justificativa legível em português do Brasil, sem diagnóstico.
 - [ ] Rodar duas vezes com os mesmos dados e as mesmas restrições produz a mesma fila.
 - [ ] A ausência na extração documental continua `null` e rastreável; a imputação do dataset não é apresentada como valor documentado.
@@ -106,6 +110,8 @@ Os testes vêm antes do código. Cada critério de aceite acima vira pelo menos 
 - Preparo pré-operatório (HbA1c, avaliação pré-anestésica, exames pré-op), que o desafio declara não avaliado.
 
 ## Questões em aberto
+
+Decisão de 2026-10-24: a classe SWALIS passa a ordenar o grupo protegido como camada de precedência. Motivo: o CID `C*` não é critério aditivo, e oncológicos com dor e limitação baixas (101 de 177 no dataset) ficavam na metade inferior apesar de classe A1 ou A2. A adaptação das classes continua sendo premissa técnica, sem validação clínica; os limiares de dor (7 e 4) e a regra de A1 e A2 precisam de revisão por quem conhece a regulação.
 
 A exclusão da espera está decidida: sem peso e sem desempate. Permanecem abertas a representação explícita de CID/fatores de risco, a relação ASA × porte e a elicitação das novas faixas de swing. A ordem relatada câncer → cardiovascular → trauma e a menor prioridade atribuída a condições M não são uma regra universal validada. Ver a revisão clínica vinculada acima. Não renormalizar automaticamente os pesos demonstrativos antigos e apresentá-los como preferências médicas.
 

@@ -259,6 +259,49 @@ def test_hierarchy_overrides_marginal_dominance_without_falsifying_ror():
     assert ids.index("ONCO") < ids.index("CALMO")
 
 
+def swalis_rows():
+    rows = synthetic()
+    for row in rows:
+        row["swalis"] = "B"
+    rows += [
+        {
+            "solicitacao_id": "A2LOW",
+            "criterios": dict.fromkeys(CRITERIA, 0),
+            "oncologico": True,
+            "sem_urgencia": False,
+            "dias_em_fila": 1,
+            "swalis": "A2",
+        },
+        {
+            "solicitacao_id": "BHIGH",
+            "criterios": dict.fromkeys(CRITERIA, 10),
+            "oncologico": False,
+            "sem_urgencia": False,
+            "dias_em_fila": 999,
+            "swalis": "B",
+        },
+    ]
+    return rows
+
+
+def test_swalis_class_precedes_additive_utility():
+    rows = swalis_rows()
+    model = ROR(rows, preferences(rows))
+    relation = model.relation("A2LOW", "BHIGH")
+    assert relation["origem"] == "hierarquia_swalis"
+    assert relation["a_necessario"] and not relation["b_necessario"] and not relation["incerto"]
+    ids = [r["solicitacao_id"] for r in order_queue(rows, model)[0]]
+    assert ids.index("A2LOW") < min(ids.index(i) for i in ["0", "1", "2", "3", "4", "BHIGH"])
+
+
+def test_reference_pair_against_swalis_precedence_is_rejected():
+    rows = swalis_rows()
+    prefs = preferences(rows)
+    prefs.comparacoes[0].antes, prefs.comparacoes[0].depois = "BHIGH", "A2LOW"
+    with pytest.raises(Incompatible, match="hierarquia"):
+        ROR(rows, prefs)
+
+
 def test_expired_treated_data_is_rejected_before_any_scoring(dataset, tmp_path):
     source = dataset()
     treat(source, tmp_path / "treated")
