@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from .access import Access
 from .artifacts import purge_artifacts
@@ -19,6 +19,7 @@ from .tribunal.models import (
     EvidenceReferences,
     EvidenceRegistration,
     EvidenceReview,
+    ExamRequestInput,
     ProposalInput,
     QueuePatient,
     Strict,
@@ -37,6 +38,13 @@ class Decision(Strict):
     medico: str = Field(min_length=3, max_length=200)
     acao: Literal["aprovar", "rejeitar", "pedir_informacoes"]
     motivo: str = Field(default="", max_length=2000)
+    exames: list[ExamRequestInput] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def exams_only_when_asking(self):
+        if (self.acao == "pedir_informacoes") != bool(self.exames):
+            raise ValueError("Pedir informacoes exige exames; as demais decisoes nao aceitam exames")
+        return self
 
     @field_validator("medico")
     @classmethod
@@ -156,6 +164,30 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
                     "data_hora": e["created_at"],
                 }
                 for e in events
+            ],
+        }
+
+    @app.get("/solicitacoes/{sid}/exames-pedidos")
+    def exam_requests(sid: str, principal=principal_dependency):
+        rows = store.exam_requests(sid)
+        if rows:
+            if not principal.permits({"paciente_id": rows[0]["paciente_id"]}):
+                raise HTTPException(404, "Pedidos nao encontrados")
+        else:
+            permit_case(sid, principal)
+        return {
+            "solicitacao_id": sid,
+            "pendentes": sum(r["status"] == "pendente" for r in rows),
+            "pedidos": [
+                {
+                    "pedido_id": r["id"],
+                    "exame": r["exame"],
+                    "explicacao": r["explicacao"],
+                    "situacao": r["status"],
+                    "responsavel": r["actor"],
+                    "data_hora": r["created_at"],
+                }
+                for r in rows
             ],
         }
 
@@ -296,7 +328,14 @@ def create_app(database=None, provider=None, token=None, start_worker=True, acce
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from None
         try:
-            version = store.decide(pid, principal.id, payload.acao, payload.motivo.strip(), changed)
+            version = store.decide(
+                pid,
+                principal.id,
+                payload.acao,
+                payload.motivo.strip(),
+                changed,
+                [e.model_dump() for e in payload.exames],
+            )
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         return {"proposta_id": pid, "situacao": payload.acao, "versao_fila": version}

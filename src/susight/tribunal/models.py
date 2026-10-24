@@ -110,12 +110,18 @@ class DocumentInput(Strict):
     paginas: int = Field(ge=1, le=10)
     tamanho_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
     sintetico: Literal[True]
+    pedido_id: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def image_page(self):
         if self.tipo_mime != "application/pdf" and self.paginas != 1:
             raise ValueError("Uma imagem corresponde a uma pagina")
         return self
+
+
+class ExamRequestInput(Strict):
+    exame: str = Field(min_length=3, max_length=200)
+    explicacao: str = Field(default="", max_length=500)
 
 
 class EvidenceRegistration(Strict):

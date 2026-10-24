@@ -42,6 +42,10 @@ class Store:
             -- Audit trail (spec 004): never expires and never holds document content, name or CNS.
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, sid TEXT NOT NULL, paciente_id TEXT,
               tipo TEXT NOT NULL, actor TEXT NOT NULL, texto TEXT NOT NULL, motivo TEXT, created_at TEXT NOT NULL);
+            -- Requested exams (spec 006): like the trail, never expire and hold only names.
+            CREATE TABLE IF NOT EXISTS exam_requests(id TEXT PRIMARY KEY, sid TEXT NOT NULL, paciente_id TEXT,
+              proposal_id TEXT NOT NULL, exame TEXT NOT NULL, explicacao TEXT NOT NULL, actor TEXT NOT NULL,
+              created_at TEXT NOT NULL, status TEXT NOT NULL, document_id TEXT, updated_at TEXT NOT NULL);
             """)
             for table in ["queues", "proposals", "decisions"]:
                 if "expires" not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
@@ -162,6 +166,15 @@ class Store:
             raise ValueError("Solicitacao nao pertence a fila ativa")
         did = uuid4().hex
         with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            request = None
+            if body.get("pedido_id"):
+                request = db.execute(
+                    "SELECT * FROM exam_requests WHERE id=? AND sid=? AND status='pendente'",
+                    (body["pedido_id"], body["solicitacao_id"]),
+                ).fetchone()
+                if request is None:
+                    raise ValueError("Pedido inexistente, de outra solicitacao ou ja respondido")
             db.execute(
                 "INSERT INTO documents VALUES (?,?,?,?,?,?)",
                 (did, body["solicitacao_id"], json.dumps(body), actor, self.instant(), self.clock() + TTL),
@@ -174,7 +187,35 @@ class Store:
                 actor,
                 "Documento recebido.",
             )
+            if request is not None:
+                db.execute(
+                    "UPDATE exam_requests SET status='recebido',document_id=?,updated_at=? WHERE id=?",
+                    (did, self.instant(), request["id"]),
+                )
+                self._event(
+                    db,
+                    body["solicitacao_id"],
+                    row.get("paciente_id"),
+                    "exame_recebido",
+                    actor,
+                    f"Exame pedido recebido: {request['exame']}.",
+                )
         return did
+
+    def _advance_request(self, db, document_id, old, new):
+        db.execute(
+            "UPDATE exam_requests SET status=?,updated_at=? WHERE document_id=? AND status=?",
+            (new, self.instant(), document_id, old),
+        )
+
+    def exam_requests(self, sid):
+        with self.db() as db:
+            return [
+                dict(r)
+                for r in db.execute(
+                    "SELECT * FROM exam_requests WHERE sid=? ORDER BY created_at DESC, rowid DESC", (sid,)
+                )
+            ]
 
     def document(self, did):
         self.purge_expired()
@@ -197,6 +238,7 @@ class Store:
                 )
             except sqlite3.IntegrityError:
                 raise ValueError("Identificador de evidencia ja registrado") from None
+            self._advance_request(db, body["documento_id"], "recebido", "em_analise")
         return eid
 
     def evidence(self, eid):
@@ -230,6 +272,7 @@ class Store:
             )
             if result.rowcount != 1:
                 raise ValueError("Evidencia ja revisada ou expirada; registre nova versao para corrigir")
+            self._advance_request(db, row["document_id"], "em_analise", "atendido")
         return self.evidence(eid)
 
     def _approved(self, db, body):
@@ -330,7 +373,7 @@ class Store:
                 )
             ]
 
-    def decide(self, pid, actor, action, reason, rows=None):
+    def decide(self, pid, actor, action, reason, rows=None, exams=()):
         self.purge_expired()
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -359,7 +402,27 @@ class Store:
             elif action == "rejeitar":
                 kind, text = "proposta_rejeitada", "A proposta de mudança não foi aprovada."
             else:
-                kind, text = "informacao_solicitada", "O médico pediu mais informações."
+                if not exams:
+                    raise ValueError("Pedir informacoes exige ao menos um exame")
+                kind = "informacao_solicitada"
+                text = "O médico pediu mais informações: " + ", ".join(e["exame"] for e in exams) + "."
+                for exam in exams:
+                    db.execute(
+                        "INSERT INTO exam_requests VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (
+                            uuid4().hex,
+                            sid,
+                            before.get("paciente_id"),
+                            pid,
+                            exam["exame"],
+                            exam.get("explicacao", ""),
+                            actor,
+                            self.instant(),
+                            "pendente",
+                            None,
+                            self.instant(),
+                        ),
+                    )
             self._event(db, sid, before.get("paciente_id"), kind, actor, text, reason)
             db.execute(
                 "INSERT INTO decisions(proposal_id,actor,action,reason,created_at,expires) VALUES (?,?,?,?,?,?)",
