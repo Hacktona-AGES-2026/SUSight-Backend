@@ -24,7 +24,6 @@ def linked_document(client, pedido_id, sid="20"):
             "tipo_mime": "application/pdf",
             "paginas": 1,
             "tamanho_bytes": 100,
-            "sintetico": True,
             "pedido_id": pedido_id,
         },
     )

@@ -81,7 +81,6 @@ def upload(client, data, mime="application/pdf", **extra):
         "conteudo_base64": b64(data),
         "termo_versao": term,
         "aceite_termo": True,
-        "sintetico": True,
     }
     return client.post("/documentos/arquivo", json=body | extra)
 

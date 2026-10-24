@@ -106,7 +106,6 @@ def seed(database, password):
             tipo_mime="application/pdf",
             paginas=1,
             tamanho_bytes=1000,
-            sintetico=True,
         )
         did = store.register_document(doc.model_dump(), "seed-demo")
         evidence_id = f"EVT-{index}"

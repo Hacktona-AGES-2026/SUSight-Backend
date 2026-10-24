@@ -118,7 +118,6 @@ class DocumentInput(Strict):
     tipo_mime: Literal["application/pdf", "image/jpeg", "image/png"]
     paginas: int = Field(ge=1, le=10)
     tamanho_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
-    sintetico: Literal[True]
     pedido_id: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")

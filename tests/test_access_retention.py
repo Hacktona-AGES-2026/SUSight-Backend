@@ -61,7 +61,6 @@ def document(client, sid="20"):
             "tipo_mime": "application/pdf",
             "paginas": 1,
             "tamanho_bytes": 100,
-            "sintetico": True,
         },
     )
 
@@ -320,7 +319,7 @@ def test_individual_token_provisioning_has_scopes_permissions_and_no_overwrite(t
         provision(directory, "PAC2")
 
 
-def test_document_registration_enforces_synthetic_input_limits(api):
+def test_document_registration_enforces_input_limits(api):
     client, _ = api
     base = {
         "solicitacao_id": "20",
@@ -328,10 +327,8 @@ def test_document_registration_enforces_synthetic_input_limits(api):
         "tipo_mime": "application/pdf",
         "paginas": 1,
         "tamanho_bytes": 100,
-        "sintetico": True,
     }
     for change in [
-        {"sintetico": False},
         {"paginas": 11},
         {"tamanho_bytes": 10 * 1024 * 1024 + 1},
         {"tipo_mime": "image/png", "paginas": 2},

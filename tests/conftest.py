@@ -133,7 +133,6 @@ def approve_in_store(store, evidence=None, sid="20"):
         tipo_mime="application/pdf",
         paginas=1,
         tamanho_bytes=100,
-        sintetico=True,
     )
     did = store.register_document(doc.model_dump(), "uploader-test")
     body = EvidenceRegistration(
@@ -159,7 +158,6 @@ def register_http_evidence(client):
             "tipo_mime": "application/pdf",
             "paginas": 1,
             "tamanho_bytes": 100,
-            "sintetico": True,
         },
     )
     assert doc.status_code == 201, doc.text

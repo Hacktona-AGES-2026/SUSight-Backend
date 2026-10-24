@@ -97,7 +97,6 @@ class FileUpload(Strict):
     conteudo_base64: str = Field(max_length=15_000_000)
     termo_versao: str = Field(max_length=100)
     aceite_termo: bool
-    sintetico: Literal[True]
     pedido_id: str | None = Field(default=None, max_length=100)
 
 
@@ -441,7 +440,6 @@ def create_app(
             "tipo_mime": body.tipo_mime,
             "paginas": pages,
             "tamanho_bytes": len(data),
-            "sintetico": True,
             "pedido_id": body.pedido_id,
             "origem": "paciente" if principal.papel == "paciente" else "profissional",
         }
