@@ -46,6 +46,10 @@ Decisões e revisões gravam a identidade autenticada, não o nome declarado no 
 | `POST /solicitacoes/{id}/contestacao` | Contesta a posição com motivo; a solicitação fica em reavaliação (spec 008). |
 | `POST /solicitacoes/{id}/contestacao/conclusao` | Conclui a reavaliação mantendo a posição, com justificativa (spec 008). |
 | `GET /fila/exportacao.csv` | CSV `solicitacao_id,posicao,justificativa` da fila vigente; registra o export (spec 008). |
+| `GET /notificacoes`, `POST /notificacoes/{id}/lida` | Avisos do paciente ou dos casos do profissional; leitura por pessoa (spec 005). |
+| `GET/PUT /preferencias/notificacoes` | Avisos desligáveis do paciente; o de exame pedido é obrigatório (spec 005). |
+| `GET/POST /contatos`, `DELETE /contatos/{id}` | Contatos de acompanhamento do paciente; telefone sempre mascarado na leitura (spec 005). |
+| `GET/POST /dispositivos`, `DELETE /dispositivos/{id}` | Dispositivos da própria identidade para entrega futura de push; o token não é devolvido (spec 005). |
 
 `pedir_informacoes` exige `exames` (até 10, cada um com `exame` e `explicacao` opcional);
 as demais decisões recusam o campo. `POST /documentos` aceita `pedido_id` para ligar o
